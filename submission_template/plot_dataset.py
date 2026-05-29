@@ -2,9 +2,12 @@ import json
 import os
 from itertools import islice
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import plotly_express as px
 from huggingface_hub import snapshot_download
+from scipy.stats import pearsonr
 
 
 def load_dataset(split_name: str, dataset_dir: str = "dataset") -> tuple[pd.DataFrame, dict]:
@@ -47,11 +50,49 @@ def plot_keys(df: pd.DataFrame, name: str, series_id: str,
     fig.show()
 
 
+def plot_correlations(df: pd.DataFrame, series_id, y_keys):
+    series_df = df.groupby('series_id').get_group(series_id)
+
+    ys = [series_df[y_key] for y_key in y_keys]
+
+    filtered_y_keys = []
+    constant_y_keys = []
+    filtered_ys = []
+    for y_key, y in zip(y_keys, ys):
+        std = np.std(y)
+        if np.isclose(std, 0, 1e-6):
+            constant_y_keys.append(y_key)
+            continue
+        filtered_y_keys.append(y_key)
+        filtered_ys.append(y)
+
+    print(f"Keys {constant_y_keys} have near-constant values")
+
+    result = np.eye(len(filtered_y_keys))
+    for i, y1 in enumerate(filtered_ys):
+        for j, y2 in enumerate(filtered_ys):
+            if i <= j:
+                continue
+            y_i = filtered_ys[i]
+            y_j = filtered_ys[j]
+            mask = ~np.isnan(y_i) & ~np.isnan(y_j)
+            p = pearsonr(y_i[mask], y_j[mask])
+            result[i, j] = p.statistic
+            result[j, i] = result[i, j]
+
+    fig = px.imshow(result, x=filtered_y_keys, y=filtered_y_keys, text_auto=".3f", aspect="auto",
+                    labels=dict(color="Pearson Correlation Coefficient"), color_continuous_scale='RdBu')
+    fig.update_layout(title=f"Correlations Between Variables in {series_id}")
+    fig.show()
+
+
 if __name__ == "__main__":
     train_df, metadata = load_dataset("train")
-    plot_series(train_df, name="Train")
 
     keys: list[str] = metadata["schema"]["train"]
     keys.remove("timestamp")
     keys.remove("series_id")
+
+    plot_series(train_df, name="Train")
     plot_keys(train_df, name="Train", series_id="unit_000", y_keys=tuple(keys))
+    plot_correlations(train_df, series_id="unit_000", y_keys=tuple(keys))
