@@ -34,11 +34,14 @@ def plot_series(df: pd.DataFrame, name: str, num_series: int = 10,
 
 def plot_keys(df: pd.DataFrame, name: str, series_id: str,
               x_key: str = "timestamp", y_keys: tuple[str, ...] = ("target",)):
-    fig = go.Figure()
     series_df = df.groupby('series_id').get_group(series_id)
+
+    xs = series_df[x_key]
+
+    fig = go.Figure()
     for y_key in y_keys:
-        fig.add_trace(go.Scatter(x=series_df[x_key], y=series_df[y_key],
-                                 mode="lines", name=y_key, ))
+        ys = series_df[y_key]
+        fig.add_trace(go.Scatter(x=xs, y=ys, mode="lines", name=y_key, ))
     fig.update_layout(title=f"{name} Dataset Plot for {series_id}",
                       xaxis_title=x_key.capitalize(), yaxis_title="Value")
     fig.show()
