@@ -1,5 +1,6 @@
 import json
 import os
+from collections import defaultdict
 from itertools import islice
 
 import numpy as np
@@ -7,6 +8,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly_express as px
 from huggingface_hub import snapshot_download
+from plotly import colors as pc
+from plotly.subplots import make_subplots
 from scipy.stats import pearsonr
 
 
@@ -22,6 +25,21 @@ def load_dataset(split_name: str, dataset_dir: str = "dataset") -> tuple[pd.Data
     with open(metadata_path, "r", encoding="utf-8") as f:
         metadata = json.load(f)
     return pd.read_csv(csv_path), metadata
+
+
+def partition_keys(df: pd.DataFrame, keys: list[str], eps=1e-6) -> tuple[list[str], list[str]]:
+    variable_keys = []
+    constant_keys = []
+    constant_keys.extend(keys)
+    for series_id, series_df in df.groupby('series_id'):
+        keys_to_check = constant_keys.copy()
+        for key in keys_to_check:
+            std = np.std(series_df[key])
+            if not np.isclose(std, 0, atol=eps):
+                constant_keys.remove(key)
+                variable_keys.append(key)
+
+    return variable_keys, constant_keys
 
 
 def plot_series(df: pd.DataFrame, name: str, num_series: int = 10,
@@ -50,39 +68,51 @@ def plot_keys(df: pd.DataFrame, name: str, series_id: str,
     fig.show()
 
 
-def plot_correlations(df: pd.DataFrame, series_id, y_keys):
+def plot_correlations(df: pd.DataFrame, series_id, y_keys: list[str]):
     series_df = df.groupby('series_id').get_group(series_id)
 
     ys = [series_df[y_key] for y_key in y_keys]
 
-    filtered_y_keys = []
-    constant_y_keys = []
-    filtered_ys = []
-    for y_key, y in zip(y_keys, ys):
-        std = np.std(y)
-        if np.isclose(std, 0, 1e-6):
-            constant_y_keys.append(y_key)
-            continue
-        filtered_y_keys.append(y_key)
-        filtered_ys.append(y)
-
-    print(f"Keys {constant_y_keys} have near-constant values")
-
-    result = np.eye(len(filtered_y_keys))
-    for i, y1 in enumerate(filtered_ys):
-        for j, y2 in enumerate(filtered_ys):
+    result = np.eye(len(y_keys))
+    for i, y1 in enumerate(ys):
+        for j, y2 in enumerate(ys):
             if i <= j:
                 continue
-            y_i = filtered_ys[i]
-            y_j = filtered_ys[j]
+            y_i = ys[i]
+            y_j = ys[j]
             mask = ~np.isnan(y_i) & ~np.isnan(y_j)
             p = pearsonr(y_i[mask], y_j[mask])
             result[i, j] = p.statistic
             result[j, i] = result[i, j]
 
-    fig = px.imshow(result, x=filtered_y_keys, y=filtered_y_keys, text_auto=".3f", aspect="auto",
+    fig = px.imshow(result, x=y_keys, y=y_keys, text_auto=".3f", aspect="auto",
                     labels=dict(color="Pearson Correlation Coefficient"), color_continuous_scale='RdBu')
     fig.update_layout(title=f"Correlations Between Variables in {series_id}")
+    fig.show()
+
+
+def get_color(color_sequence_name: str, idx: int) -> str:
+    color_sequence = getattr(pc.qualitative, color_sequence_name)
+    return color_sequence[idx % len(color_sequence)]
+
+
+def plot_distribution(df: pd.DataFrame, keys: list[str], max_columns: int = 4):
+    values = defaultdict(list)
+    for series_id, series_df in df.groupby('series_id'):
+        for key in keys:
+            mean_value = np.mean(series_df[key])
+            values[key].append(mean_value)
+
+    num_columns = min(len(keys), max_columns)
+    fig = make_subplots(rows=len(keys) // max_columns + 1, cols=num_columns, subplot_titles=keys)
+    for i, key in enumerate(keys):
+        key_values = values[key]
+        fig.add_trace(go.Histogram(y=key_values, name=key, marker_color=get_color("Prism", i)), row=(i // max_columns) + 1,
+                      col=(i % max_columns) + 1)
+
+    fig.update_layout(title=f"Histogram of Variables that are Constant in Each Series",
+                      xaxis_title="Number of Series", yaxis_title="Value",
+                      bargap=0.2)
     fig.show()
 
 
@@ -93,6 +123,9 @@ if __name__ == "__main__":
     keys.remove("timestamp")
     keys.remove("series_id")
 
+    variable_keys, constant_keys = partition_keys(train_df, keys)
+
     plot_series(train_df, name="Train")
     plot_keys(train_df, name="Train", series_id="unit_000", y_keys=tuple(keys))
-    plot_correlations(train_df, series_id="unit_000", y_keys=tuple(keys))
+    plot_correlations(train_df, series_id="unit_000", y_keys=variable_keys)
+    plot_distribution(train_df, keys=constant_keys)
