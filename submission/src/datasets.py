@@ -65,11 +65,11 @@ class Schema:
 class Sample(TypedDict):
     """Sample of the timeseries dataset"""
     x: Tensor
-    """Historical values of shape (lookback,)"""
+    """Historical values of shape (context_size,)"""
     y: Tensor
     """Future value to predict of shape (1,)"""
     features: Tensor
-    """Features tensor of shape (lookback + 1, num_features)"""
+    """Features tensor of shape (context_size + 1, num_features)"""
 
 
 class SimpleDataset(Dataset[Sample]):
@@ -77,19 +77,19 @@ class SimpleDataset(Dataset[Sample]):
     Simple timeseries dataset implementation.
     """
 
-    def __init__(self, df: pd.DataFrame, metadata: dict, lookback: int):
-        assert lookback >= 0, f"Negative lookback value {lookback}"
+    def __init__(self, df: pd.DataFrame, metadata: dict, context_size: int):
+        assert context_size >= 0, f"Negative context_size value {context_size}"
 
         self.schema = Schema.from_metadata(metadata)
         self.data = df
         self.series_groups = df.groupby(self.schema.series_id_column)
-        self.lookback = lookback
+        self.context_size = context_size
         self.series_ids = sorted(df[self.schema.series_id_column].unique())
 
     @property
     def n_chunks(self) -> int:
         """Number of chunks we can split each series into"""
-        return self.schema.n_training_steps - self.lookback
+        return self.schema.n_training_steps - self.context_size
 
     def __len__(self) -> int:
         return self.schema.n_series * self.n_chunks
@@ -100,7 +100,7 @@ class SimpleDataset(Dataset[Sample]):
         series_df = self.series_groups.get_group(series_id)
 
         inner_idx_start = index % self.n_chunks
-        inner_idx_end = inner_idx_start + self.lookback
+        inner_idx_end = inner_idx_start + self.context_size
 
         xs = series_df.iloc[inner_idx_start:inner_idx_end][self.schema.target_column].to_numpy()
         ys = series_df.iloc[inner_idx_end:inner_idx_end + 1][self.schema.target_column].to_numpy()
