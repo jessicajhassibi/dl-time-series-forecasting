@@ -1,5 +1,3 @@
-import json
-import os
 from collections import defaultdict
 from itertools import islice
 
@@ -7,24 +5,11 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import plotly_express as px
-from huggingface_hub import snapshot_download
 from plotly import colors as pc
 from plotly.subplots import make_subplots
 from scipy.stats import pearsonr
 
-
-def load_dataset(split_name: str, dataset_dir: str = "dataset") -> tuple[pd.DataFrame, dict]:
-    splits = {'train': 'train.csv', 'validation': 'validation_input.csv'}
-    csv_path = os.path.join(dataset_dir, splits[split_name])
-    metadata_path = os.path.join(dataset_dir, "metadata.json")
-    if (not os.path.exists(csv_path)) or (not os.path.exists(metadata_path)):
-        snapshot_download(repo_id="AIML-TUDA/dlam-ts-project-data-2026", repo_type="dataset",
-                          local_dir=dataset_dir)
-
-    print(f"Reading '{split_name}' split from {csv_path} and metadata from {metadata_path}")
-    with open(metadata_path, "r", encoding="utf-8") as f:
-        metadata = json.load(f)
-    return pd.read_csv(csv_path), metadata
+from src.datasets import load_dataset
 
 
 def partition_keys(df: pd.DataFrame, keys: list[str], eps=1e-6) -> tuple[list[str], list[str]]:
@@ -107,7 +92,8 @@ def plot_distribution(df: pd.DataFrame, keys: list[str], max_columns: int = 4):
     fig = make_subplots(rows=len(keys) // max_columns + 1, cols=num_columns, subplot_titles=keys)
     for i, key in enumerate(keys):
         key_values = values[key]
-        fig.add_trace(go.Histogram(y=key_values, name=key, marker_color=get_color("Prism", i)), row=(i // max_columns) + 1,
+        fig.add_trace(go.Histogram(y=key_values, name=key, marker_color=get_color("Prism", i)),
+                      row=(i // max_columns) + 1,
                       col=(i % max_columns) + 1)
 
     fig.update_layout(title=f"Histogram of Variables that are Constant in Each Series",
