@@ -62,7 +62,7 @@ class Schema:
         return Schema("series_id", target, feature_keys, n_series, n_training_steps)
 
 
-class Sample(TypedDict):
+class ForecastSample(TypedDict):
     """Sample of the timeseries dataset"""
     x: Tensor
     """Historical values of shape (context_size,)"""
@@ -72,9 +72,9 @@ class Sample(TypedDict):
     """Features tensor of shape (context_size + prediction_horizon, num_features)"""
 
 
-class SimpleDataset(Dataset[Sample]):
+class ForecastDataset(Dataset[ForecastSample]):
     """
-    Simple timeseries dataset implementation.
+    Forecasting dataset with input of `context_size` past values and output of `prediction_horizon` future values.
     """
 
     def __init__(self, df: pd.DataFrame, metadata: dict, context_size: int, prediction_horizon: int = 1):
@@ -98,7 +98,7 @@ class SimpleDataset(Dataset[Sample]):
     def __len__(self) -> int:
         return self.schema.n_series * self.n_chunks
 
-    def __getitem__(self, index: int) -> Sample:
+    def __getitem__(self, index: int) -> ForecastSample:
         series_idx = index // self.n_chunks
         series_id = self.series_ids[series_idx]
         series_df = self.series_groups.get_group(series_id)
@@ -111,4 +111,4 @@ class SimpleDataset(Dataset[Sample]):
         ys = series_df.iloc[inner_idx_mid:inner_idx_end][self.schema.target_column].to_numpy()
         features = series_df.iloc[inner_idx_start:inner_idx_end][self.schema.feature_columns].to_numpy()
 
-        return Sample(x=Tensor(xs), y=Tensor(ys), features=Tensor(features))
+        return ForecastSample(x=Tensor(xs), y=Tensor(ys), features=Tensor(features))
