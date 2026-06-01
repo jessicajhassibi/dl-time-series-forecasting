@@ -9,7 +9,7 @@ from plotly import colors as pc
 from plotly.subplots import make_subplots
 from scipy.stats import pearsonr
 
-from src.datasets import load_dataset
+from src.datasets import load_dataset, Schema
 
 
 def partition_keys(df: pd.DataFrame, keys: list[str], eps=1e-6) -> tuple[list[str], list[str]]:
@@ -27,8 +27,7 @@ def partition_keys(df: pd.DataFrame, keys: list[str], eps=1e-6) -> tuple[list[st
     return variable_keys, constant_keys
 
 
-def plot_series(df: pd.DataFrame, name: str, num_series: int = 10,
-                x_key: str = "timestamp", y_key: str = "target"):
+def plot_series(df: pd.DataFrame, name: str, x_key: str, y_key: str, num_series: int = 10):
     fig = go.Figure()
     for series_id, series_df in islice(df.groupby('series_id'), num_series):
         fig.add_trace(go.Scatter(x=series_df[x_key], y=series_df[y_key],
@@ -39,7 +38,7 @@ def plot_series(df: pd.DataFrame, name: str, num_series: int = 10,
 
 
 def plot_keys(df: pd.DataFrame, name: str, series_id: str,
-              x_key: str = "timestamp", y_keys: tuple[str, ...] = ("target",)):
+              x_key: str, y_keys: list[str]):
     series_df = df.groupby('series_id').get_group(series_id)
 
     xs = series_df[x_key]
@@ -105,13 +104,13 @@ def plot_distribution(df: pd.DataFrame, keys: list[str], max_columns: int = 4):
 if __name__ == "__main__":
     train_df, metadata = load_dataset("train")
 
-    keys: list[str] = metadata["schema"]["train"]
-    keys.remove("timestamp")
-    keys.remove("series_id")
+    schema = Schema.from_metadata(metadata)
+    print(f"Dataset Schema:\n{schema}")
 
-    variable_keys, constant_keys = partition_keys(train_df, keys)
+    variable_keys, constant_keys = partition_keys(train_df, schema.feature_columns)
 
-    plot_series(train_df, name="Train")
-    plot_keys(train_df, name="Train", series_id="unit_000", y_keys=tuple(keys))
+    plot_series(train_df, name="Train", x_key="timestamp", y_key=schema.target_column)
+    plot_keys(train_df, name="Train", series_id="unit_000", x_key="timestamp",
+              y_keys=[schema.target_column] + schema.feature_columns)
     plot_correlations(train_df, series_id="unit_000", y_keys=variable_keys)
     plot_distribution(train_df, keys=constant_keys)

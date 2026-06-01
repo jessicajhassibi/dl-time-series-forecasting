@@ -1,8 +1,12 @@
 import json
 import os
+from dataclasses import dataclass
+from typing import TypedDict
 
 import pandas as pd
 from huggingface_hub import snapshot_download
+from torch import Tensor
+from torch.utils.data import Dataset
 
 
 def load_dataset(split_name: str, dataset_dir: str = "dataset") -> tuple[pd.DataFrame, dict]:
@@ -26,3 +30,80 @@ def load_dataset(split_name: str, dataset_dir: str = "dataset") -> tuple[pd.Data
     with open(metadata_path, "r", encoding="utf-8") as f:
         metadata = json.load(f)
     return pd.read_csv(csv_path), metadata
+
+
+@dataclass(frozen=True)
+class Schema:
+    """
+    Defines dataset schema.
+    """
+    series_id_column: str
+    """Column with the id of the individual series"""
+    target_column: str
+    """Column with the prediction target"""
+    feature_columns: list[str]
+    """Columns with features"""
+
+    n_series: int
+    """Number of series in the dataset"""
+    n_training_steps: int
+    """Number of training steps in each series"""
+
+    @staticmethod
+    def from_metadata(metadata: dict) -> 'Schema':
+        schema = metadata["schema"]
+        target = metadata["target_column"]
+        labels = schema["labels"]
+        feature_keys: list[str] = schema["train"]
+        for label in labels:
+            feature_keys.remove(label)
+        n_series = metadata["n_series"]
+        n_training_steps = metadata["n_steps"] - metadata["validation_horizon"] - metadata["test_horizon"]
+        return Schema("series_id", target, feature_keys, n_series, n_training_steps)
+
+
+class Sample(TypedDict):
+    """Sample of the timeseries dataset"""
+    x: Tensor
+    """Historical values of shape (lookback,)"""
+    y: Tensor
+    """Future value to predict of shape (1,)"""
+    features: Tensor
+    """Features tensor of shape (lookback + 1, num_features)"""
+
+
+class SimpleDataset(Dataset[Sample]):
+    """
+    Simple timeseries dataset implementation.
+    """
+
+    def __init__(self, df: pd.DataFrame, metadata: dict, lookback: int):
+        assert lookback >= 0, f"Negative lookback value {lookback}"
+
+        self.schema = Schema.from_metadata(metadata)
+        self.data = df
+        self.series_groups = df.groupby(self.schema.series_id_column)
+        self.lookback = lookback
+        self.series_ids = sorted(df[self.schema.series_id_column].unique())
+
+    @property
+    def n_chunks(self) -> int:
+        """Number of chunks we can split each series into"""
+        return self.schema.n_training_steps - self.lookback
+
+    def __len__(self) -> int:
+        return self.schema.n_series * self.n_chunks
+
+    def __getitem__(self, index) -> Sample:
+        series_idx = index // self.n_chunks
+        series_id = self.series_ids[series_idx]
+        series_df = self.series_groups.get_group(series_id)
+
+        inner_idx_start = index % self.n_chunks
+        inner_idx_end = inner_idx_start + self.lookback
+
+        xs = series_df.iloc[inner_idx_start:inner_idx_end][self.schema.target_column].to_numpy()
+        ys = series_df.iloc[inner_idx_end:inner_idx_end + 1][self.schema.target_column].to_numpy()
+        features = series_df.iloc[inner_idx_start:inner_idx_end + 1][self.schema.feature_columns].to_numpy()
+
+        return Sample(x=Tensor(xs), y=Tensor(ys), features=Tensor(features))

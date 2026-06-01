@@ -5,3 +5,4 @@ plotly
 plotly-express
 huggingface_hub
 scipy
+tqdm
