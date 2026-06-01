@@ -7,7 +7,7 @@ from src.datasets import load_dataset, SimpleDataset
 
 if __name__ == "__main__":
     train_df, metadata = load_dataset("train")
-    train_dataset = SimpleDataset(train_df, metadata, lookback=239)
+    train_dataset = SimpleDataset(train_df, metadata, context_size=239, prediction_horizon=5)
 
     print(f"Length of the dataset is {len(train_dataset)}")
 

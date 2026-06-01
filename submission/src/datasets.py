@@ -67,9 +67,9 @@ class Sample(TypedDict):
     x: Tensor
     """Historical values of shape (context_size,)"""
     y: Tensor
-    """Future value to predict of shape (1,)"""
+    """Future value to predict of shape (prediction_horizon,)"""
     features: Tensor
-    """Features tensor of shape (context_size + 1, num_features)"""
+    """Features tensor of shape (context_size + prediction_horizon, num_features)"""
 
 
 class SimpleDataset(Dataset[Sample]):
@@ -77,33 +77,38 @@ class SimpleDataset(Dataset[Sample]):
     Simple timeseries dataset implementation.
     """
 
-    def __init__(self, df: pd.DataFrame, metadata: dict, context_size: int):
+    def __init__(self, df: pd.DataFrame, metadata: dict, context_size: int, prediction_horizon: int = 1):
         assert context_size >= 0, f"Negative context_size value {context_size}"
+        assert prediction_horizon > 0, f"Non-positive prediction_horizon value {prediction_horizon}"
 
         self.schema = Schema.from_metadata(metadata)
         self.data = df
+
         self.series_groups = df.groupby(self.schema.series_id_column)
-        self.context_size = context_size
         self.series_ids = sorted(df[self.schema.series_id_column].unique())
+
+        self.context_size = context_size
+        self.prediction_horizon = prediction_horizon
 
     @property
     def n_chunks(self) -> int:
         """Number of chunks we can split each series into"""
-        return self.schema.n_training_steps - self.context_size
+        return self.schema.n_training_steps - self.context_size - self.prediction_horizon + 1
 
     def __len__(self) -> int:
         return self.schema.n_series * self.n_chunks
 
-    def __getitem__(self, index) -> Sample:
+    def __getitem__(self, index: int) -> Sample:
         series_idx = index // self.n_chunks
         series_id = self.series_ids[series_idx]
         series_df = self.series_groups.get_group(series_id)
 
         inner_idx_start = index % self.n_chunks
-        inner_idx_end = inner_idx_start + self.context_size
+        inner_idx_mid = inner_idx_start + self.context_size
+        inner_idx_end = inner_idx_mid + self.prediction_horizon
 
-        xs = series_df.iloc[inner_idx_start:inner_idx_end][self.schema.target_column].to_numpy()
-        ys = series_df.iloc[inner_idx_end:inner_idx_end + 1][self.schema.target_column].to_numpy()
-        features = series_df.iloc[inner_idx_start:inner_idx_end + 1][self.schema.feature_columns].to_numpy()
+        xs = series_df.iloc[inner_idx_start:inner_idx_mid][self.schema.target_column].to_numpy()
+        ys = series_df.iloc[inner_idx_mid:inner_idx_end][self.schema.target_column].to_numpy()
+        features = series_df.iloc[inner_idx_start:inner_idx_end][self.schema.feature_columns].to_numpy()
 
         return Sample(x=Tensor(xs), y=Tensor(ys), features=Tensor(features))
