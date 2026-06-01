@@ -54,7 +54,7 @@ class Schema:
         schema = metadata["schema"]
         target = metadata["target_column"]
         labels = schema["labels"]
-        feature_keys: list[str] = schema["train"]
+        feature_keys: list[str] = schema["train"].copy()
         for label in labels:
             feature_keys.remove(label)
         n_series = metadata["n_series"]
@@ -67,17 +67,29 @@ class ForecastSample(TypedDict):
     x: Tensor
     """Historical values of shape (context_size,)"""
     y: Tensor
-    """Future value to predict of shape (prediction_horizon,)"""
+    """Future value to predict of shape (prediction_horizon,) or (context_size,)"""
     features: Tensor
     """Features tensor of shape (context_size + prediction_horizon, num_features)"""
 
 
 class ForecastDataset(Dataset[ForecastSample]):
     """
-    Forecasting dataset with input of `context_size` past values and output of `prediction_horizon` future values.
+    Forecasting dataset with input of `context_size` past values predicting `prediction_horizon` future values.
     """
 
-    def __init__(self, df: pd.DataFrame, metadata: dict, context_size: int, prediction_horizon: int = 1):
+    def __init__(self, df: pd.DataFrame, metadata: dict, context_size: int, prediction_horizon: int = 1,
+                 is_shifted_output: bool = False):
+        """
+        Create the ForecastingDataset.
+
+        Args:
+            df: dataset
+            metadata: metadata dictionary of the dataset
+            context_size: number of past values to use for the input
+            prediction_horizon: number of future values to predict
+            is_shifted_output: if the output should only contain the predicted values,
+                               or if it should be the input shifted by the prediction horizon.
+        """
         assert context_size >= 0, f"Negative context_size value {context_size}"
         assert prediction_horizon > 0, f"Non-positive prediction_horizon value {prediction_horizon}"
 
@@ -89,6 +101,7 @@ class ForecastDataset(Dataset[ForecastSample]):
 
         self.context_size = context_size
         self.prediction_horizon = prediction_horizon
+        self.is_shifted_output = is_shifted_output
 
     @property
     def n_chunks(self) -> int:
@@ -104,11 +117,18 @@ class ForecastDataset(Dataset[ForecastSample]):
         series_df = self.series_groups.get_group(series_id)
 
         inner_idx_start = index % self.n_chunks
-        inner_idx_mid = inner_idx_start + self.context_size
-        inner_idx_end = inner_idx_mid + self.prediction_horizon
+        inner_idx_end = inner_idx_start + self.context_size + self.prediction_horizon
 
-        xs = series_df.iloc[inner_idx_start:inner_idx_mid][self.schema.target_column].to_numpy()
-        ys = series_df.iloc[inner_idx_mid:inner_idx_end][self.schema.target_column].to_numpy()
+        inner_idx_x_end = inner_idx_start + self.context_size
+        if self.is_shifted_output:
+            # output is the context window shifted by prediction horizon
+            inner_idx_y_start = inner_idx_start + self.prediction_horizon
+        else:
+            # output contains only the future predictions
+            inner_idx_y_start = inner_idx_start + self.context_size
+
+        xs = series_df.iloc[inner_idx_start:inner_idx_x_end][self.schema.target_column].to_numpy()
+        ys = series_df.iloc[inner_idx_y_start:inner_idx_end][self.schema.target_column].to_numpy()
         features = series_df.iloc[inner_idx_start:inner_idx_end][self.schema.feature_columns].to_numpy()
 
         return ForecastSample(x=Tensor(xs), y=Tensor(ys), features=Tensor(features))
