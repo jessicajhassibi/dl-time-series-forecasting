@@ -6,3 +6,4 @@ plotly-express
 huggingface_hub
 scipy
 tqdm
+tensorboard

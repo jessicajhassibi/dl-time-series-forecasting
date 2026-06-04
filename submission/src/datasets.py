@@ -5,6 +5,7 @@ from typing import TypedDict
 
 import pandas as pd
 from huggingface_hub import snapshot_download
+from pandas.core.groupby import DataFrameGroupBy
 from torch import Tensor
 from torch.utils.data import Dataset
 
@@ -49,6 +50,15 @@ class Schema:
     n_training_steps: int
     """Number of training steps in each series"""
 
+    validation_horizon: int
+
+    def get_series_ids(self, df: pd.DataFrame) -> list[str]:
+        """Return a sorted list of unique series ids in the given dataset"""
+        return sorted(df[self.series_id_column].unique())
+
+    def get_series_groups(self, df: pd.DataFrame) -> DataFrameGroupBy:
+        return df.groupby(self.series_id_column)
+
     @staticmethod
     def from_metadata(metadata: dict) -> 'Schema':
         schema = metadata["schema"]
@@ -58,8 +68,11 @@ class Schema:
         for label in labels:
             feature_keys.remove(label)
         n_series = metadata["n_series"]
-        n_training_steps = metadata["n_steps"] - metadata["validation_horizon"] - metadata["test_horizon"]
-        return Schema("series_id", target, feature_keys, n_series, n_training_steps)
+        validation_horizon = metadata["validation_horizon"]
+        test_horizon = metadata["test_horizon"]
+        n_training_steps = metadata["n_steps"] - validation_horizon - test_horizon
+        return Schema("series_id", target, feature_keys, n_series, n_training_steps,
+                      validation_horizon=validation_horizon)
 
 
 class ForecastSample(TypedDict):
@@ -96,8 +109,8 @@ class ForecastDataset(Dataset[ForecastSample]):
         self.schema = Schema.from_metadata(metadata)
         self.data = df
 
-        self.series_groups = df.groupby(self.schema.series_id_column)
-        self.series_ids = sorted(df[self.schema.series_id_column].unique())
+        self.series_groups = self.schema.get_series_groups(df)
+        self.series_ids = self.schema.get_series_ids(df)
 
         self.context_size = context_size
         self.prediction_horizon = prediction_horizon
