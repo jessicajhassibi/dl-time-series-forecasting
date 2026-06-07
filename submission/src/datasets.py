@@ -114,6 +114,8 @@ class ForecastDataset(Dataset[ForecastSample]):
         self.series_groups = self.schema.get_series_groups(df)
         self.series_ids = self.schema.get_series_ids(df)
 
+        # TODO preprocess dataset to deal with nan values in some of the columns
+
         self.context_size = context_size
         self.prediction_horizon = prediction_horizon
         self.is_shifted_output = is_shifted_output
