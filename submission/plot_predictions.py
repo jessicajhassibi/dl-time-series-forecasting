@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 import torch
 import yaml
 
+from src.baselines import make_all_baselines
 from src.datasets import load_dataset, load_metadata, Schema
 from src.linear import LinearModel
 
@@ -33,6 +34,7 @@ def get_config(checkpoint_path: str) -> dict[str, Any] | None:
 
 def predict(model: torch.nn.Module, train_df: pd.DataFrame, val_df: pd.DataFrame,
             schema: Schema, context_size: int, prediction_horizon: int) -> np.ndarray:
+    # TODO instead of predicting for all series, run predictions for val_df
     input = torch.zeros((schema.n_series, context_size))
     series_groups = schema.get_series_groups(train_df)
     for series_idx, series_id in enumerate(schema.get_series_ids(train_df)):
@@ -49,7 +51,19 @@ def predict(model: torch.nn.Module, train_df: pd.DataFrame, val_df: pd.DataFrame
         input = torch.cat([input, output], dim=-1)
         input = input[:, -context_size:]
 
-    return result.detach().numpy()
+    return result.detach().numpy()  # TODO return Dataframe
+
+
+def plot_predictions(result: np.ndarray, series_ids: list[str]):
+    fig = go.Figure()
+    for series_id, series_prediction in zip(series_ids, result):
+        timesteps = list(range(len(series_prediction)))  # TODO
+        fig.add_trace(go.Scatter(x=timesteps, y=series_prediction,
+                                 mode="lines", name=series_id))
+    fig.update_layout(title=f"Predictions for {model_name} model, "
+                            f"context {context_size}, prediction {prediction_horizon}",
+                      xaxis_title="Time", yaxis_title="Prediction")
+    fig.show()
 
 
 if __name__ == "__main__":
@@ -87,15 +101,23 @@ if __name__ == "__main__":
     schema = Schema.from_metadata(metadata)
 
     # TODO move prediction code to `predict.py`, in this script only read output csv
-    result = predict(model, train_df, val_df, schema, context_size, prediction_horizon)
+    model_result = predict(model, train_df, val_df, schema, context_size, prediction_horizon)
+    baselines_results = make_all_baselines(train_df, val_df)
 
-    # TODO add other baselines
+    series_ids = schema.get_series_ids(train_df)
+    plot_predictions(model_result, series_ids)
+
+    series_id = "unit_000"
+    series_idx = series_ids.index(series_id)
     fig = go.Figure()
-    for series_id, series_prediction in zip(schema.get_series_ids(train_df), result):
-        timesteps = list(range(len(series_prediction)))  # TODO
-        fig.add_trace(go.Scatter(x=timesteps, y=series_prediction,
-                                 mode="lines", name=series_id))
-    fig.update_layout(title=f"Predictions for {model_name} model, "
-                            f"context {context_size}, prediction {prediction_horizon}",
+    for baseline_name, baseline_result in baselines_results.items():
+        series_df = baseline_result.groupby(schema.series_id_column).get_group(series_id)
+        xs = series_df["timestamp"]  # TODO move to schema
+        ys = series_df["prediction"]
+        fig.add_trace(go.Scatter(x=xs, y=ys,
+                                 mode="lines", name=baseline_name))
+    fig.add_trace(go.Scatter(x=xs, y=model_result[series_idx],
+                             mode="lines", name=f"{model_name}:{context_size}:{prediction_horizon}"))
+    fig.update_layout(title=f"Comparison of predictions for series {series_id}",
                       xaxis_title="Time", yaxis_title="Prediction")
     fig.show()
