@@ -120,7 +120,7 @@ class ForecastDataset(Dataset[ForecastSample]):
             metadata: metadata dictionary of the dataset
             context_size: number of past values to use for the input
             prediction_horizon: number of future values to predict
-            is_shifted_output: if the output should only contain the predicted values,
+            is_shifted_output: if the output should only contain the future values,
                                or if it should be the input shifted by the prediction horizon.
         """
         assert context_size >= 0, f"Negative context_size value {context_size}"
