@@ -50,7 +50,7 @@ def main() -> None:
 
     model.eval()
 
-    # Replace this with feature loading, preprocessing, and model inference.
+    # TODO Replace this with feature loading, preprocessing, and model inference.
     # The placeholder writes zeros so the file contract is explicit.
     predictions = forecast_index[["series_id", "timestamp"]].copy()
     predictions["prediction"] = 0.0
