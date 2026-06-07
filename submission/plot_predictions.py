@@ -1,5 +1,6 @@
 import os.path
 import sys
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -15,21 +16,11 @@ from src.linear import LinearModel
 def find_last_checkpoint(parent_directory: str) -> str | None:
     if not os.path.exists(parent_directory):
         return None
-
-    all_experiments = [os.path.join(parent_directory, d) for d in os.listdir(parent_directory)]
-    all_experiments = [d for d in all_experiments if os.path.isdir(d)]
-    if not all_experiments:
+    parent_path = Path(parent_directory)
+    checkpoints = list(parent_path.glob("**/*.pt"))
+    if not checkpoints:
         return None
-
-    last_experiment = max(all_experiments, key=os.path.getmtime)
-
-    all_checkpoints = [os.path.join(last_experiment, d) for d in os.listdir(last_experiment)]
-    all_checkpoints = [d for d in all_checkpoints if os.path.isfile(d) and d.endswith(".pt")]
-    if not all_checkpoints:
-        return None
-
-    last_checkpoint = max(all_checkpoints, key=os.path.getmtime)
-    return last_checkpoint
+    return max(checkpoints, key=os.path.getmtime)
 
 
 def get_config(checkpoint_path: str) -> dict[str, Any] | None:
@@ -62,9 +53,7 @@ def predict(model: torch.nn.Module, train_df: pd.DataFrame, val_df: pd.DataFrame
 
 
 if __name__ == "__main__":
-    model_name = "linear"
-
-    log_dir = os.path.join("logs", model_name)
+    log_dir = "logs"
     checkpoint_path = find_last_checkpoint(log_dir)
     if not checkpoint_path:
         print(f"Could not find checkpoint to use in {log_dir}")
@@ -78,10 +67,17 @@ if __name__ == "__main__":
         print(f"Could not find config file for checkpoint {checkpoint_path}")
         sys.exit(1)
 
+    print(f"Using model config {config}")
+    model_name = config["model_name"]
     context_size = config["context_size"]
     prediction_horizon = config["prediction_horizon"]
 
-    model = LinearModel(context_size, prediction_horizon)
+    if model_name == "linear":
+        model = LinearModel(context_size, prediction_horizon)
+    else:
+        print(f"Unknown model name {model_name}")
+        sys.exit(1)
+
     model.load_state_dict(torch.load(checkpoint_path, weights_only=True))
     model.eval()
 
@@ -99,6 +95,7 @@ if __name__ == "__main__":
         timesteps = list(range(len(series_prediction)))  # TODO
         fig.add_trace(go.Scatter(x=timesteps, y=series_prediction,
                                  mode="lines", name=series_id))
-    fig.update_layout(title=f"Predictions for {model_name}",
+    fig.update_layout(title=f"Predictions for {model_name} model, "
+                            f"context {context_size}, prediction {prediction_horizon}",
                       xaxis_title="Time", yaxis_title="Prediction")
     fig.show()
