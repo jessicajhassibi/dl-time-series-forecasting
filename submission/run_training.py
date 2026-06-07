@@ -5,7 +5,7 @@ import tyro
 
 from src.config import write_config
 from src.datasets import load_dataset, ForecastDataset, load_metadata
-from src.linear import LinearModel
+from src.models import create_model
 from src.train import train_model
 
 
@@ -19,13 +19,7 @@ def run_training(model_name: str = "linear", context_size: int = 336 * 3, predic
         prediction_horizon: size of the model prediction
         num_epochs: number of epochs to train the model
     """
-    if model_name == "linear":
-        model = LinearModel(context_size, prediction_horizon)
-        is_shifted_output = False
-    else:
-        print(f"Unknown model name {model_name}")
-        return
-
+    model, is_shifted_output = create_model(model_name, context_size, prediction_horizon)
     train_df = load_dataset("train")
     metadata = load_metadata()
     train_dataset = ForecastDataset(train_df, metadata, context_size=context_size,

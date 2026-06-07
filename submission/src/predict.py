@@ -7,9 +7,9 @@ from typing import Any
 import pandas as pd
 import torch
 
-from config import get_config
-from datasets import Schema
-from linear import LinearModel
+from .config import get_config
+from .datasets import Schema
+from .models import create_model
 
 
 def find_last_checkpoint(parent_directory: str = "logs") -> Path | None:
@@ -67,11 +67,7 @@ def predict_for_checkpoint(checkpoint: Path, train_df: pd.DataFrame, val_df: pd.
     context_size = config["context_size"]
     prediction_horizon = config["prediction_horizon"]
 
-    # TODO unify with model creation for training
-    if model_name == "linear":
-        model = LinearModel(context_size, prediction_horizon)
-    else:
-        raise ValueError(f"Unknown model name {model_name}")
+    model, _ = create_model(model_name, context_size, prediction_horizon)
 
     checkpoint: dict = torch.load(checkpoint, map_location="cpu")
     if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
