@@ -32,25 +32,17 @@ def load_forecast_index(input_dir: Path) -> pd.DataFrame:
     raise FileNotFoundError(f"Expected one of {expected} in input_dir.")
 
 
-def main() -> None:
-    """Load a checkpoint and write placeholder private-test predictions."""
-    parser = argparse.ArgumentParser(description="Generate private test predictions.")
-    parser.add_argument("--input_dir", required=False, default=Path("dataset"), type=Path)
-    parser.add_argument("--output_file", required=False, default=None, type=Path)
-    parser.add_argument("--checkpoint", required=False, default=None, type=Path)
-    args = parser.parse_args()
-
-    checkpoint: Path | None = args.checkpoint
+def do_predict(checkpoint: Path | None, input_dir: Path, output_file: Path | None):
     if checkpoint is None:
         checkpoint = find_last_checkpoint()
 
     if checkpoint is None or not checkpoint.exists():
         raise FileNotFoundError(f"Missing checkpoint: {checkpoint}")
 
-    train_df = load_dataset("train", args.input_dir)
-    val_df = load_forecast_index(args.input_dir)
+    train_df = load_dataset("train", input_dir)
+    val_df = load_forecast_index(input_dir)
 
-    metadata = load_metadata(args.input_dir)
+    metadata = load_metadata(input_dir)
     schema = Schema.from_metadata(metadata)
 
     config = get_config(checkpoint)
@@ -82,12 +74,22 @@ def main() -> None:
 
     model_result = predict(model, train_df, val_df, schema, context_size, prediction_horizon)
 
-    output_file = args.output_file
     if output_file is None:
         output_file = Path(os.path.join("predictions", f"{model_name}_{context_size}_{prediction_horizon}.csv"))
     output_file.parent.mkdir(parents=True, exist_ok=True)
     model_result.to_csv(output_file, index=False)
     print(f"Written predictions to {output_file}")
+
+
+def main() -> None:
+    """Load a checkpoint and write predictions."""
+    parser = argparse.ArgumentParser(description="Generate private test predictions.")
+    parser.add_argument("--input_dir", required=False, default=Path("dataset"), type=Path)
+    parser.add_argument("--output_file", required=False, default=None, type=Path)
+    parser.add_argument("--checkpoint", required=False, default=None, type=Path)
+    args = parser.parse_args()
+
+    do_predict(args.checkpoint, args.input_dir, args.output_file)
 
 
 if __name__ == "__main__":

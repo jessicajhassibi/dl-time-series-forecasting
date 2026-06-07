@@ -1,6 +1,7 @@
 import json
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TypedDict
 
 import pandas as pd
@@ -10,14 +11,14 @@ from torch import Tensor
 from torch.utils.data import Dataset
 
 
-def download_dataset(dataset_dir: str, target_path: str):
+def download_dataset(dataset_dir: str | Path, target_path: str):
     """Downloads the dataset into the specified directory if the target path is not present."""
     if not os.path.exists(target_path):
         snapshot_download(repo_id="AIML-TUDA/dlam-ts-project-data-2026", repo_type="dataset",
                           local_dir=dataset_dir)
 
 
-def load_dataset(split_name: str, dataset_dir: str = "dataset") -> pd.DataFrame:
+def load_dataset(split_name: str, dataset_dir: str | Path = "dataset") -> pd.DataFrame:
     """
     Download the dataset from Hugging Face Hub or load it from disk if it is already downloaded.
 
@@ -34,7 +35,7 @@ def load_dataset(split_name: str, dataset_dir: str = "dataset") -> pd.DataFrame:
     return pd.read_csv(csv_path)
 
 
-def load_metadata(dataset_dir: str = "dataset") -> dict:
+def load_metadata(dataset_dir: str | Path = "dataset") -> dict:
     """
     Download the dataset metadata from Hugging Face Hub or load it from disk if it is already downloaded.
 
