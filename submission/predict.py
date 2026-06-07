@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import get_configuration_id
+from src.config import get_configuration_id
 from src.datasets import load_dataset, load_metadata, Schema
 from src.predict import find_last_checkpoint, predict_for_checkpoint
 

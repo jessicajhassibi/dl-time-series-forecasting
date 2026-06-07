@@ -3,7 +3,7 @@ from itertools import islice
 import pandas as pd
 from plotly import graph_objects as go
 
-from datasets import Schema
+from .datasets import Schema
 
 
 def plot_series(df: pd.DataFrame, title: str, x_key: str, y_key: str, num_series: int = 10):
