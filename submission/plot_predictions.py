@@ -43,9 +43,10 @@ def predict(model: torch.nn.Module, train_df: pd.DataFrame, schema: Schema, cont
     result = torch.zeros((schema.n_series, validation_horizon))
     for timestep in range(0, validation_horizon, prediction_horizon):
         output = model(input)  # TODO add features for models using features
-        torch.roll(input, dims=(1,), shifts=(-prediction_horizon,))
-        input[:, -prediction_horizon:] = output
         result[:, timestep:min(timestep + prediction_horizon, validation_horizon)] = output
+
+        input = torch.cat([input, output], dim=-1)
+        input = input[:, -context_size:]
 
     return result.detach().numpy()
 
