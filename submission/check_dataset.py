@@ -3,10 +3,11 @@ from itertools import islice
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from src.datasets import load_dataset, ForecastDataset
+from src.datasets import load_dataset, load_metadata, ForecastDataset
 
 if __name__ == "__main__":
-    train_df, metadata = load_dataset("train")
+    train_df = load_dataset("train")
+    metadata = load_metadata()
 
     for is_shifted_output in (False, True):
         train_dataset = ForecastDataset(train_df, metadata, context_size=239, prediction_horizon=5,

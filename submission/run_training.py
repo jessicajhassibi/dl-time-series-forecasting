@@ -3,7 +3,7 @@ from datetime import datetime
 
 import tyro
 
-from src.datasets import load_dataset, ForecastDataset
+from src.datasets import load_dataset, ForecastDataset, load_metadata
 from src.linear import LinearModel
 from src.train import train_model
 
@@ -25,7 +25,8 @@ def run_training(model_name: str = "linear", context_size: int = 336 * 3, predic
         print(f"Unknown model name {model_name}")
         return
 
-    train_df, metadata = load_dataset("train")
+    train_df = load_dataset("train")
+    metadata = load_metadata()
     train_dataset = ForecastDataset(train_df, metadata, context_size=context_size,
                                     prediction_horizon=prediction_horizon,
                                     is_shifted_output=is_shifted_output)

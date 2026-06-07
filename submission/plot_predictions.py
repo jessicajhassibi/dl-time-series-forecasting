@@ -6,8 +6,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import torch
 
-from datasets import load_dataset, Schema
-from linear import LinearModel
+from src.datasets import load_dataset, load_metadata, Schema
+from src.linear import LinearModel
 
 
 def find_last_checkpoint(parent_directory: str) -> str | None:
@@ -68,7 +68,8 @@ if __name__ == "__main__":
     model.load_state_dict(torch.load(checkpoint_path, weights_only=True))
     model.eval()
 
-    train_df, metadata = load_dataset("train")
+    train_df = load_dataset("train")
+    metadata = load_metadata()
     schema = Schema.from_metadata(metadata)
 
     # TODO move prediction code to `predict.py`, in this script only read output csv
