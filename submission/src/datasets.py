@@ -81,8 +81,10 @@ class ForecastSample(TypedDict):
     """Historical values of shape (context_size,)"""
     y: Tensor
     """Future value to predict of shape (prediction_horizon,) or (context_size,)"""
-    features: Tensor
-    """Features tensor of shape (context_size + prediction_horizon, num_features)"""
+    x_features: Tensor
+    """Historical features of shape (context_size, num_features)"""
+    y_features: Tensor
+    """Future features of shape (prediction_horizon, num_features) or (context_size, num_features)"""
 
 
 class ForecastDataset(Dataset[ForecastSample]):
@@ -129,19 +131,21 @@ class ForecastDataset(Dataset[ForecastSample]):
         series_id = self.series_ids[series_idx]
         series_df = self.series_groups.get_group(series_id)
 
-        inner_idx_start = index % self.n_chunks
-        inner_idx_end = inner_idx_start + self.context_size + self.prediction_horizon
+        input_idx_start = index % self.n_chunks
+        input_idx_end = input_idx_start + self.context_size
 
-        inner_idx_x_end = inner_idx_start + self.context_size
+        xs = series_df.iloc[input_idx_start:input_idx_end][self.schema.target_column].to_numpy()
+        x_features = series_df.iloc[input_idx_start:input_idx_end][self.schema.feature_columns].to_numpy()
+
+        output_idx_end = input_idx_start + self.context_size + self.prediction_horizon
         if self.is_shifted_output:
             # output is the context window shifted by prediction horizon
-            inner_idx_y_start = inner_idx_start + self.prediction_horizon
+            output_idx_start = input_idx_start + self.prediction_horizon
         else:
             # output contains only the future predictions
-            inner_idx_y_start = inner_idx_start + self.context_size
+            output_idx_start = input_idx_start + self.context_size
+        ys = series_df.iloc[output_idx_start:output_idx_end][self.schema.target_column].to_numpy()
+        y_features = series_df.iloc[output_idx_start:output_idx_end][self.schema.feature_columns].to_numpy()
 
-        xs = series_df.iloc[inner_idx_start:inner_idx_x_end][self.schema.target_column].to_numpy()
-        ys = series_df.iloc[inner_idx_y_start:inner_idx_end][self.schema.target_column].to_numpy()
-        features = series_df.iloc[inner_idx_start:inner_idx_end][self.schema.feature_columns].to_numpy()
-
-        return ForecastSample(x=Tensor(xs), y=Tensor(ys), features=Tensor(features))
+        return ForecastSample(x=Tensor(xs), y=Tensor(ys),
+                              x_features=Tensor(x_features), y_features=Tensor(y_features), )

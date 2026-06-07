@@ -24,5 +24,6 @@ if __name__ == "__main__":
                 print(f"Batch {batch_idx} sample:")
                 print(f"x shape: {sample['x'].shape}")
                 print(f"y shape: {sample['y'].shape}")
-                print(f"features shape: {sample['features'].shape}")
+                print(f"x features shape: {sample['x_features'].shape}")
+                print(f"y features shape: {sample['y_features'].shape}")
             loop.set_description(f"Batch index {batch_idx}")

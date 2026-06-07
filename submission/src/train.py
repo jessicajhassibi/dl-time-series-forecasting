@@ -36,8 +36,9 @@ def train_model(model: torch.nn.Module, dataset: ForecastDataset, log_dir: str,
 
             x = sample['x']
             y = sample['y']
-            features = sample['features']
-            y_pred = model(x, features)
+            x_features = sample['x_features']
+            y_features = sample['y_features']
+            y_pred = model(x, x_features, y_features)
 
             loss = criterion(y, y_pred)
             loss.backward()
