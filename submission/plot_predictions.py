@@ -1,10 +1,12 @@
 import os.path
 import sys
+from typing import Any
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import torch
+import yaml
 
 from src.datasets import load_dataset, load_metadata, Schema
 from src.linear import LinearModel
@@ -30,6 +32,14 @@ def find_last_checkpoint(parent_directory: str) -> str | None:
     return last_checkpoint
 
 
+def get_config(checkpoint_path: str) -> dict[str, Any] | None:
+    checkpoint_dir = os.path.dirname(checkpoint_path)
+    config_path = os.path.join(checkpoint_dir, "config.yml")
+    if not os.path.exists(config_path):
+        return None
+    return yaml.safe_load(open(config_path, "r"))
+
+
 def predict(model: torch.nn.Module, train_df: pd.DataFrame, schema: Schema, context_size: int,
             prediction_horizon: int) -> np.ndarray:
     input = torch.zeros((schema.n_series, context_size))
@@ -52,12 +62,7 @@ def predict(model: torch.nn.Module, train_df: pd.DataFrame, schema: Schema, cont
 
 
 if __name__ == "__main__":
-    prediction_horizon = 336
-    context_size = 3 * prediction_horizon
-    # TODO write context_size and prediction_horizon to config file and load for prediction
-
     model_name = "linear"
-    model = LinearModel(context_size, prediction_horizon)
 
     log_dir = os.path.join("logs", model_name)
     checkpoint_path = find_last_checkpoint(log_dir)
@@ -66,6 +71,17 @@ if __name__ == "__main__":
         sys.exit(1)
 
     print(f"Using checkpoint {checkpoint_path}")
+
+    config = get_config(checkpoint_path)
+    if not config:
+        # TODO use default config if config file is not found
+        print(f"Could not find config file for checkpoint {checkpoint_path}")
+        sys.exit(1)
+
+    context_size = config["context_size"]
+    prediction_horizon = config["prediction_horizon"]
+
+    model = LinearModel(context_size, prediction_horizon)
     model.load_state_dict(torch.load(checkpoint_path, weights_only=True))
     model.eval()
 
