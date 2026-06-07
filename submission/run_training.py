@@ -2,8 +2,8 @@ import os.path
 from datetime import datetime
 
 import tyro
-import yaml
 
+from src.config import write_config
 from src.datasets import load_dataset, ForecastDataset, load_metadata
 from src.linear import LinearModel
 from src.train import train_model
@@ -37,10 +37,7 @@ def run_training(model_name: str = "linear", context_size: int = 336 * 3, predic
     os.makedirs(log_dir, exist_ok=True)
     print(f"Writing experiment data to {log_dir}")
 
-    with open(os.path.join(log_dir, "config.yml"), "w") as config_file:
-        yaml.dump(dict(model_name=model_name,
-                       context_size=context_size,
-                       prediction_horizon=prediction_horizon), config_file)
+    write_config(log_dir, model_name, context_size, prediction_horizon)
 
     train_model(model, train_dataset, log_dir, num_epochs=num_epochs)
 
