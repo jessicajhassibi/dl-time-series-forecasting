@@ -40,8 +40,8 @@ def get_config(checkpoint_path: str) -> dict[str, Any] | None:
     return yaml.safe_load(open(config_path, "r"))
 
 
-def predict(model: torch.nn.Module, train_df: pd.DataFrame, schema: Schema, context_size: int,
-            prediction_horizon: int) -> np.ndarray:
+def predict(model: torch.nn.Module, train_df: pd.DataFrame, val_df: pd.DataFrame,
+            schema: Schema, context_size: int, prediction_horizon: int) -> np.ndarray:
     input = torch.zeros((schema.n_series, context_size))
     series_groups = schema.get_series_groups(train_df)
     for series_idx, series_id in enumerate(schema.get_series_ids(train_df)):
@@ -86,11 +86,12 @@ if __name__ == "__main__":
     model.eval()
 
     train_df = load_dataset("train")
+    val_df = load_dataset("validation")
     metadata = load_metadata()
     schema = Schema.from_metadata(metadata)
 
     # TODO move prediction code to `predict.py`, in this script only read output csv
-    result = predict(model, train_df, schema, context_size, prediction_horizon)
+    result = predict(model, train_df, val_df, schema, context_size, prediction_horizon)
 
     # TODO add other baselines
     fig = go.Figure()
