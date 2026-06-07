@@ -1,5 +1,4 @@
 from collections import defaultdict
-from itertools import islice
 
 import numpy as np
 import pandas as pd
@@ -10,6 +9,7 @@ from plotly.subplots import make_subplots
 from scipy.stats import pearsonr
 
 from src.datasets import load_dataset, load_metadata, Schema
+from src.plot import plot_series
 
 
 def partition_keys(df: pd.DataFrame, keys: list[str], eps=1e-6) -> tuple[list[str], list[str]]:
@@ -25,16 +25,6 @@ def partition_keys(df: pd.DataFrame, keys: list[str], eps=1e-6) -> tuple[list[st
                 variable_keys.append(key)
 
     return variable_keys, constant_keys
-
-
-def plot_series(df: pd.DataFrame, name: str, x_key: str, y_key: str, num_series: int = 10):
-    fig = go.Figure()
-    for series_id, series_df in islice(df.groupby('series_id'), num_series):
-        fig.add_trace(go.Scatter(x=series_df[x_key], y=series_df[y_key],
-                                 mode="lines", name=str(series_id), ))
-    fig.update_layout(title=f"{name} Dataset Plot",
-                      xaxis_title=x_key.capitalize(), yaxis_title=y_key.capitalize())
-    fig.show()
 
 
 def plot_keys(df: pd.DataFrame, name: str, series_id: str,
@@ -110,7 +100,7 @@ if __name__ == "__main__":
 
     variable_keys, constant_keys = partition_keys(train_df, schema.feature_columns)
 
-    plot_series(train_df, name="Train", x_key="timestamp", y_key=schema.target_column)
+    plot_series(train_df, title=f"Training Dataset Plot", x_key="timestamp", y_key=schema.target_column)
     plot_keys(train_df, name="Train", series_id="unit_000", x_key="timestamp",
               y_keys=[schema.target_column] + schema.feature_columns)
     plot_correlations(train_df, series_id="unit_000", y_keys=[schema.target_column] + variable_keys)
