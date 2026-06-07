@@ -112,5 +112,5 @@ if __name__ == "__main__":
     plot_series(train_df, name="Train", x_key="timestamp", y_key=schema.target_column)
     plot_keys(train_df, name="Train", series_id="unit_000", x_key="timestamp",
               y_keys=[schema.target_column] + schema.feature_columns)
-    plot_correlations(train_df, series_id="unit_000", y_keys=variable_keys)
+    plot_correlations(train_df, series_id="unit_000", y_keys=[schema.target_column] + variable_keys)
     plot_distribution(train_df, keys=constant_keys)
