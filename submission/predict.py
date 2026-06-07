@@ -6,17 +6,14 @@ Students should replace the placeholder logic with their trained model.
 from __future__ import annotations
 
 import argparse
-import os.path
+import os
 from pathlib import Path
 
 import pandas as pd
-import torch
 
-from config import get_config
-from datasets import load_dataset
-from linear import LinearModel
-from src.datasets import load_metadata, Schema
-from src.predict import find_last_checkpoint, predict
+from config import get_configuration_id
+from src.datasets import load_dataset, load_metadata, Schema
+from src.predict import find_last_checkpoint, predict_for_checkpoint
 
 
 def load_forecast_index(input_dir: Path) -> pd.DataFrame:
@@ -45,37 +42,12 @@ def do_predict(checkpoint: Path | None, input_dir: Path, output_file: Path | Non
     metadata = load_metadata(input_dir)
     schema = Schema.from_metadata(metadata)
 
-    config = get_config(checkpoint)
-    if not config:
-        # TODO use default config if config file is not found
-        print(f"Could not find config file for checkpoint {checkpoint}")
-        return
-
-    print(f"Using model config {config}")
-    model_name = config["model_name"]
-    context_size = config["context_size"]
-    prediction_horizon = config["prediction_horizon"]
-
-    if model_name == "linear":
-        model = LinearModel(context_size, prediction_horizon)
-    else:
-        print(f"Unknown model name {model_name}")
-        return
-
-    checkpoint: dict = torch.load(checkpoint, map_location="cpu")
-    if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
-        model.load_state_dict(checkpoint["state_dict"])
-    elif isinstance(checkpoint, dict):
-        model.load_state_dict(checkpoint)
-    else:
-        raise ValueError("Checkpoint must be a state_dict or a dict containing `state_dict`.")
-
-    model.eval()
-
-    model_result = predict(model, train_df, val_df, schema, context_size, prediction_horizon)
+    model_result_dict = predict_for_checkpoint(checkpoint, train_df, val_df, schema)
+    model_result = model_result_dict["result"]
 
     if output_file is None:
-        output_file = Path(os.path.join("predictions", f"{model_name}_{context_size}_{prediction_horizon}.csv"))
+        config = model_result_dict["config"]
+        output_file = Path(os.path.join("predictions", get_configuration_id(config) + ".csv"))
     output_file.parent.mkdir(parents=True, exist_ok=True)
     model_result.to_csv(output_file, index=False)
     print(f"Written predictions to {output_file}")

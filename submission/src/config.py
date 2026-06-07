@@ -20,3 +20,8 @@ def write_config(log_dir: str, model_name: str, context_size: int, prediction_ho
         yaml.dump(dict(model_name=model_name,
                        context_size=context_size,
                        prediction_horizon=prediction_horizon), config_file)
+
+
+def get_configuration_id(config: dict) -> str:
+    """Identifier to use for this model configuration (for labeling plots, outputting predictions, etc.)"""
+    return f"{config["model_name"]}_{config["context_size"]}_{config["prediction_horizon"]}"

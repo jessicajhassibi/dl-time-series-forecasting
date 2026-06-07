@@ -1,14 +1,19 @@
+from __future__ import annotations
+
 import os
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import torch
 
+from config import get_config
 from datasets import Schema
+from linear import LinearModel
 
 
 def find_last_checkpoint(parent_directory: str = "logs") -> Path | None:
-    """"""
+    """Find the last checkpoint in the given directory."""
     if not os.path.exists(parent_directory):
         return None
     parent_path = Path(parent_directory)
@@ -20,6 +25,7 @@ def find_last_checkpoint(parent_directory: str = "logs") -> Path | None:
 
 def predict(model: torch.nn.Module, train_df: pd.DataFrame, val_df: pd.DataFrame,
             schema: Schema, context_size: int, prediction_horizon: int) -> pd.DataFrame:
+    """Run predictions using given model with given training and validation datasets."""
     val_series_ids = schema.get_series_ids(val_df)
 
     input = torch.zeros((len(val_series_ids), context_size))
@@ -47,3 +53,35 @@ def predict(model: torch.nn.Module, train_df: pd.DataFrame, val_df: pd.DataFrame
         result_df.loc[result_df[schema.series_id_column].eq(series_id), ["prediction"]] = result[series_idx]
 
     return result_df
+
+
+def predict_for_checkpoint(checkpoint: Path, train_df: pd.DataFrame, val_df: pd.DataFrame,
+                           schema: Schema) -> dict[str, Any]:
+    config = get_config(checkpoint)
+    if not config:
+        # TODO use default config if config file is not found
+        raise ValueError(f"Could not find config file for checkpoint {checkpoint}")
+
+    print(f"Using model config {config}")
+    model_name = config["model_name"]
+    context_size = config["context_size"]
+    prediction_horizon = config["prediction_horizon"]
+
+    # TODO unify with model creation for training
+    if model_name == "linear":
+        model = LinearModel(context_size, prediction_horizon)
+    else:
+        raise ValueError(f"Unknown model name {model_name}")
+
+    checkpoint: dict = torch.load(checkpoint, map_location="cpu")
+    if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+        model.load_state_dict(checkpoint["state_dict"])
+    elif isinstance(checkpoint, dict):
+        model.load_state_dict(checkpoint)
+    else:
+        raise ValueError("Checkpoint must be a state_dict or a dict containing `state_dict`.")
+
+    model.eval()
+    model_result = predict(model, train_df, val_df, schema, context_size, prediction_horizon)
+    # TODO use TypedDict or dataclass
+    return dict(result=model_result, config=config)
