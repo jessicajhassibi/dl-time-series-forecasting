@@ -35,8 +35,8 @@ def predict(model: torch.nn.Module, train_df: pd.DataFrame, val_df: pd.DataFrame
         series_history = torch.Tensor(series_df.iloc[-context_size:][schema.target_column].to_numpy())
         input[series_idx, :] = series_history
 
-    # TODO we may need test_horizon instead of validation_horizon?
-    # or just detect horizon from the val_df
+    # TODO val_df does not necessarily come directly after train_df
+    # therefore prediction should use timestamps from the dataset
     validation_horizon = schema.validation_horizon
     result = torch.zeros((schema.n_series, validation_horizon))
     for timestep in range(0, validation_horizon, prediction_horizon):
