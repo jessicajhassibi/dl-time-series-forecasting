@@ -4,7 +4,8 @@ import pandas as pd
 
 from src.baselines import make_all_baselines
 from src.config import get_configuration_id
-from src.datasets import load_dataset, load_metadata, Schema
+from src.datasets import load_dataset
+from src.datasets import load_schema
 from src.plot import plot_prediction_comparison
 from src.plot import plot_series
 from src.predict import predict_for_checkpoint
@@ -34,8 +35,7 @@ def predict_with_last_checkpoint(log_dir: str = "logs") -> dict[str, pd.DataFram
 if __name__ == "__main__":
     train_df = load_dataset("train")
     val_df = load_dataset("validation")
-    metadata = load_metadata()
-    schema = Schema.from_metadata(metadata)
+    schema = load_schema()
 
     baselines_results = make_all_baselines(train_df, val_df)
     previous_results = load_previous_predictions()

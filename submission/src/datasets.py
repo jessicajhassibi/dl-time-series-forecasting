@@ -1,14 +1,13 @@
 import json
 import os
-from dataclasses import dataclass
-from pathlib import Path
-from typing import TypedDict
-
 import pandas as pd
+from dataclasses import dataclass
 from huggingface_hub import snapshot_download
 from pandas.core.groupby import DataFrameGroupBy
+from pathlib import Path
 from torch import Tensor
 from torch.utils.data import Dataset
+from typing import TypedDict
 
 
 def download_dataset(dataset_dir: str | Path, target_path: str):
@@ -96,6 +95,12 @@ class Schema:
                       validation_horizon=validation_horizon)
 
 
+def load_schema(dataset_dir: str | Path = "dataset") -> Schema:
+    """Load dataset schema from the given directory"""
+    metadata = load_metadata(dataset_dir)
+    return Schema.from_metadata(metadata)
+
+
 class ForecastSample(TypedDict):
     """Sample of the timeseries dataset"""
     x: Tensor
@@ -113,14 +118,14 @@ class ForecastDataset(Dataset[ForecastSample]):
     Forecasting dataset with input of `context_size` past values predicting `prediction_horizon` future values.
     """
 
-    def __init__(self, df: pd.DataFrame, metadata: dict, context_size: int, prediction_horizon: int = 1,
+    def __init__(self, df: pd.DataFrame, schema: Schema, context_size: int, prediction_horizon: int = 1,
                  is_shifted_output: bool = False):
         """
         Create the ForecastingDataset.
 
         Args:
             df: dataset
-            metadata: metadata dictionary of the dataset
+            schema: schema of the dataset
             context_size: number of past values to use for the input
             prediction_horizon: number of future values to predict
             is_shifted_output: if the output should only contain the future values,
@@ -129,7 +134,7 @@ class ForecastDataset(Dataset[ForecastSample]):
         assert context_size >= 0, f"Negative context_size value {context_size}"
         assert prediction_horizon > 0, f"Non-positive prediction_horizon value {prediction_horizon}"
 
-        self.schema = Schema.from_metadata(metadata)
+        self.schema = schema
         self.data = df
 
         self.series_groups = self.schema.get_series_groups(df)

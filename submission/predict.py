@@ -12,7 +12,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.config import get_configuration_id
-from src.datasets import load_dataset, load_metadata, Schema
+from src.datasets import load_dataset, load_schema
 from src.predict import predict_for_checkpoint
 from src.util import find_last_checkpoint
 
@@ -39,9 +39,7 @@ def do_predict(checkpoint: Path | None, input_dir: Path, output_file: Path | Non
 
     train_df = load_dataset("train", input_dir)
     val_df = load_forecast_index(input_dir)
-
-    metadata = load_metadata(input_dir)
-    schema = Schema.from_metadata(metadata)
+    schema = load_schema(input_dir)
 
     model_result_dict = predict_for_checkpoint(checkpoint, train_df, val_df, schema)
     model_result = model_result_dict["result"]

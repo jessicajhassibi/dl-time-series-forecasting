@@ -8,7 +8,7 @@ from plotly import colors as pc
 from plotly.subplots import make_subplots
 from scipy.stats import pearsonr
 
-from src.datasets import load_dataset, load_metadata, Schema
+from src.datasets import load_dataset, load_schema
 from src.plot import plot_series
 
 
@@ -93,9 +93,8 @@ def plot_distribution(df: pd.DataFrame, keys: list[str], max_columns: int = 4):
 
 if __name__ == "__main__":
     train_df = load_dataset("train")
-    metadata = load_metadata()
+    schema = load_schema()
 
-    schema = Schema.from_metadata(metadata)
     print(f"Dataset Schema:\n{schema}")
 
     variable_keys, constant_keys = partition_keys(train_df, schema.feature_columns)

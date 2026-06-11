@@ -4,7 +4,7 @@ from datetime import datetime
 import tyro
 
 from src.config import write_config
-from src.datasets import load_dataset, ForecastDataset, load_metadata
+from src.datasets import load_dataset, ForecastDataset, load_schema
 from src.models import create_model
 from src.train import train_model
 
@@ -21,8 +21,8 @@ def run_training(model_name: str = "linear", context_size: int = 336 * 3, predic
     """
     model, is_shifted_output = create_model(model_name, context_size, prediction_horizon)
     train_df = load_dataset("train")
-    metadata = load_metadata()
-    train_dataset = ForecastDataset(train_df, metadata, context_size=context_size,
+    schema = load_schema()
+    train_dataset = ForecastDataset(train_df, schema, context_size=context_size,
                                     prediction_horizon=prediction_horizon,
                                     is_shifted_output=is_shifted_output)
     print(f"Loaded training dataset of length {len(train_dataset)}")
