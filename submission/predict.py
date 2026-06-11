@@ -13,7 +13,8 @@ import pandas as pd
 
 from src.config import get_configuration_id
 from src.datasets import load_dataset, load_metadata, Schema
-from src.predict import find_last_checkpoint, predict_for_checkpoint
+from src.predict import predict_for_checkpoint
+from src.util import find_last_checkpoint
 
 
 def load_forecast_index(input_dir: Path) -> pd.DataFrame:

@@ -7,7 +7,8 @@ from src.config import get_configuration_id
 from src.datasets import load_dataset, load_metadata, Schema
 from src.plot import plot_prediction_comparison
 from src.plot import plot_series
-from src.predict import find_last_checkpoint, predict_for_checkpoint
+from src.predict import predict_for_checkpoint
+from src.util import find_last_checkpoint
 
 
 def load_previous_predictions(parent_dir: Path = Path("predictions")) -> dict[str, pd.DataFrame]:
