@@ -1,13 +1,14 @@
 import json
 import os
-import pandas as pd
 from dataclasses import dataclass
+from pathlib import Path
+from typing import TypedDict
+
+import pandas as pd
 from huggingface_hub import snapshot_download
 from pandas.core.groupby import DataFrameGroupBy
-from pathlib import Path
 from torch import Tensor
 from torch.utils.data import Dataset
-from typing import TypedDict
 
 
 def download_dataset(dataset_dir: str | Path, target_path: str):
@@ -61,9 +62,13 @@ class Schema:
     series_id_column: str
     """Column with the id of the individual series"""
     target_column: str
-    """Column with the prediction target"""
+    """Column with the prediction target for training"""
+    prediction_column: str
+    """Column with the prediction target for prediction"""
     feature_columns: list[str]
     """Columns with features"""
+    timestamp_column: str
+    """Column with the timestamp"""
 
     n_series: int
     """Number of series in the dataset"""
@@ -71,6 +76,7 @@ class Schema:
     """Number of training steps in each series"""
 
     validation_horizon: int
+    test_horizon: int
 
     def get_series_ids(self, df: pd.DataFrame) -> list[str]:
         """Return a sorted list of unique series ids in the given dataset"""
@@ -91,8 +97,10 @@ class Schema:
         validation_horizon = metadata["validation_horizon"]
         test_horizon = metadata["test_horizon"]
         n_training_steps = metadata["n_steps"] - validation_horizon - test_horizon
-        return Schema("series_id", target, feature_keys, n_series, n_training_steps,
-                      validation_horizon=validation_horizon)
+        return Schema(series_id_column="series_id", target_column=target, timestamp_column="timestamp",
+                      prediction_column="prediction",
+                      feature_columns=feature_keys, n_series=n_series, n_training_steps=n_training_steps,
+                      validation_horizon=validation_horizon, test_horizon=test_horizon)
 
 
 def load_schema(dataset_dir: str | Path = "dataset") -> Schema:

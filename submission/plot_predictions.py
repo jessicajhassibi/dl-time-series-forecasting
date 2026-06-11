@@ -46,5 +46,5 @@ if __name__ == "__main__":
 
     for model_name, model_prediction in model_results.items():
         plot_series(model_prediction, title=f"Predictions for {model_name}",
-                    x_key="timestamp", y_key="prediction", num_series=-1)
+                    x_key=schema.timestamp_column, y_key=schema.prediction_column, num_series=-1)
     plot_prediction_comparison(all_results, schema, "unit_000")

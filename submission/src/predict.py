@@ -35,10 +35,10 @@ def predict(model: torch.nn.Module, train_df: pd.DataFrame, val_df: pd.DataFrame
         input = input[:, -context_size:]
     result = result.detach().numpy()
 
-    result_df = val_df[[schema.series_id_column, "timestamp"]].copy()
-    result_df["prediction"] = 0.0
+    result_df = val_df[[schema.series_id_column, schema.timestamp_column]].copy()
+    result_df[schema.prediction_column] = 0.0
     for series_idx, series_id in enumerate(val_series_ids):
-        result_df.loc[result_df[schema.series_id_column].eq(series_id), ["prediction"]] = result[series_idx]
+        result_df.loc[result_df[schema.series_id_column].eq(series_id), [schema.prediction_column]] = result[series_idx]
 
     return result_df
 

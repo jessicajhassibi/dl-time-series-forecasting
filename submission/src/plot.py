@@ -25,9 +25,10 @@ def plot_prediction_comparison(results: dict[str, pd.DataFrame], schema: Schema,
     fig = go.Figure()
     for name, result in results.items():
         series_df = result.groupby(schema.series_id_column).get_group(series_id)
-        xs = series_df["timestamp"]  # TODO move to schema
-        ys = series_df["prediction"]
+        xs = series_df[schema.timestamp_column]
+        ys = series_df[schema.prediction_column]
         fig.add_trace(go.Scatter(x=xs, y=ys, mode="lines", name=name))
     fig.update_layout(title=f"Predictions Comparison for {series_id}",
-                      xaxis_title="Time", yaxis_title="Prediction")
+                      xaxis_title=schema.timestamp_column.capitalize(),
+                      yaxis_title=schema.prediction_column.capitalize())
     fig.show()
