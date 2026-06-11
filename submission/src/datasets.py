@@ -16,6 +16,8 @@ def download_dataset(dataset_dir: str | Path, target_path: str):
     if not os.path.exists(target_path):
         snapshot_download(repo_id="AIML-TUDA/dlam-ts-project-data-2026", repo_type="dataset",
                           local_dir=dataset_dir)
+    if not os.path.exists(target_path):
+        raise FileNotFoundError(f"Required path {target_path} not found in the dataset")
 
 
 def load_dataset(split_name: str, dataset_dir: str | Path = "dataset") -> pd.DataFrame:
@@ -45,6 +47,7 @@ def load_metadata(dataset_dir: str | Path = "dataset") -> dict:
         An dict with the dataset metadata.
     """
     metadata_path = os.path.join(dataset_dir, "metadata.json")
+    download_dataset(dataset_dir, metadata_path)
     with open(metadata_path, "r", encoding="utf-8") as f:
         metadata = json.load(f)
     print(f"Reading dataset metadata from {metadata_path}.")
