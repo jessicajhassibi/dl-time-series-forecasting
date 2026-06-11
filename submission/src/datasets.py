@@ -137,6 +137,7 @@ class ForecastDataset(Dataset[ForecastSample]):
         self.schema = schema
         self.data = df
 
+        # TODO ensure that each group is sorted by timestamp
         self.series_groups = self.schema.get_series_groups(df)
         self.series_ids = self.schema.get_series_ids(df)
 
