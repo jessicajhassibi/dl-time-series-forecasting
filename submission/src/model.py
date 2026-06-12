@@ -13,7 +13,6 @@ class ForecastModel(torch.nn.Module):
         super().__init__()
         self.bias = torch.nn.Parameter(torch.zeros(()))
 
-    def forward(self, x: torch.Tensor, x_features: torch.Tensor | None = None,
-                y_features: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, x_features: torch.Tensor | None = None) -> torch.Tensor:
         """Return the input shifted by the learned scalar bias."""
         return x + self.bias

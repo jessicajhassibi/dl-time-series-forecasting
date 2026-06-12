@@ -11,8 +11,7 @@ class LinearModel(torch.nn.Module):
         self.beta = torch.nn.Parameter(torch.zeros(1))
         self.use_rev_in = use_rev_in
 
-    def forward(self, x: torch.Tensor, x_features: torch.Tensor | None = None,
-                y_features: torch.Tensor | None = None, eps: float = 1e-7) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, x_features: torch.Tensor | None = None, eps: float = 1e-7) -> torch.Tensor:
         if self.use_rev_in:
             std, mean = torch.std_mean(x, dim=-1, keepdim=True, unbiased=False)
             x = (self.gamma + eps) * (x - mean) / (std + eps) + self.beta
