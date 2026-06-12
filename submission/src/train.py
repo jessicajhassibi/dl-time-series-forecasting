@@ -39,10 +39,11 @@ def train_model(model: torch.nn.Module, dataset: ForecastDataset, log_dir: str,
             x_features = sample['x_features']
             y_features = sample['y_features']
 
-            # TODO the model should also predict the future feature values and include them in the loss function
-            y_pred = model(x, x_features)
+            y_pred, y_features_pred = model(x, x_features)
 
             loss = criterion(y, y_pred)
+            if y_features_pred:
+                loss += criterion(y_features, y_features_pred)
             loss.backward()
 
             optimizer.step()

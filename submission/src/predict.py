@@ -16,23 +16,30 @@ def predict(model: torch.nn.Module, train_df: pd.DataFrame, val_df: pd.DataFrame
     """Run predictions using given model with given training and validation datasets."""
     val_series_ids = schema.get_series_ids(val_df)
 
-    input = torch.zeros((len(val_series_ids), context_size))
+    x_values = torch.zeros((len(val_series_ids), context_size))
+    x_features = torch.zeros((len(val_series_ids), context_size, len(schema.feature_columns)))
     train_series_groups = schema.get_series_groups(train_df)
     for series_idx, series_id in enumerate(val_series_ids):
         series_df = train_series_groups.get_group(series_id)
-        series_history = torch.Tensor(series_df.iloc[-context_size:][schema.target_column].to_numpy())
-        input[series_idx, :] = series_history
+        series_x = torch.Tensor(series_df.iloc[-context_size:][schema.target_column].to_numpy())
+        series_features = torch.Tensor(series_df.iloc[-context_size:][schema.feature_columns].to_numpy())
+        x_values[series_idx, :] = series_x
+        x_features[series_idx, :, :] = series_features
 
     # TODO val_df does not necessarily come directly after train_df
     # therefore prediction should use timestamps from the dataset
     validation_horizon = schema.validation_horizon
     result = torch.zeros((schema.n_series, validation_horizon))
     for timestep in range(0, validation_horizon, prediction_horizon):
-        output = model(input)  # TODO pass features to the model
-        result[:, timestep:min(timestep + prediction_horizon, validation_horizon)] = output
+        y_values, y_features = model(x_values, x_features)
+        result[:, timestep:min(timestep + prediction_horizon, validation_horizon)] = y_values
 
-        input = torch.cat([input, output], dim=-1)
-        input = input[:, -context_size:]
+        x_values = torch.cat([x_values, y_values], dim=-1)
+        x_values = x_values[:, -context_size:]
+        if y_features:
+            x_features = torch.cat([x_features, y_features], dim=1)
+            x_features = x_features[:, -context_size:, :]
+
     result = result.detach().numpy()
 
     result_df = val_df[[schema.series_id_column, schema.timestamp_column]].copy()
