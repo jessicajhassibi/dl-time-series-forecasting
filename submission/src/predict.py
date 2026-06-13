@@ -7,7 +7,6 @@ from typing import Any
 import pandas as pd
 import torch
 
-from .config import get_config
 from .datasets import Schema
 from .models import create_model
 
@@ -51,14 +50,8 @@ def predict(model: torch.nn.Module, train_df: pd.DataFrame, val_df: pd.DataFrame
     return result_df
 
 
-def predict_for_checkpoint(checkpoint: Path, train_df: pd.DataFrame, val_df: pd.DataFrame,
-                           schema: Schema) -> dict[str, Any]:
-    config = get_config(checkpoint)
-    if not config:
-        # TODO use default config if config file is not found
-        # Default config should be the one we submit
-        raise ValueError(f"Could not find config file for checkpoint {checkpoint}")
-
+def predict_for_checkpoint(checkpoint: Path, config: dict[str, Any], train_df: pd.DataFrame, val_df: pd.DataFrame,
+                           schema: Schema) -> pd.DataFrame:
     print(f"Using model config {config}")
     model_name = config["model_name"]
     context_size = config["context_size"]
@@ -76,6 +69,4 @@ def predict_for_checkpoint(checkpoint: Path, train_df: pd.DataFrame, val_df: pd.
         raise ValueError("Checkpoint must be a state_dict or a dict containing `state_dict`.")
 
     model.eval()
-    model_result = predict(model, train_df, val_df, schema, context_size, prediction_horizon)
-    # TODO use TypedDict or dataclass
-    return dict(result=model_result, config=config)
+    return predict(model, train_df, val_df, schema, context_size, prediction_horizon)

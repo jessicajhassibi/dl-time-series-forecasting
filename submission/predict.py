@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 import tyro
 
-from src.config import get_configuration_id
+from src.config import get_configuration_id, get_config
 from src.datasets import load_dataset, load_schema
 from src.predict import predict_for_checkpoint
 from src.util import find_last_checkpoint
@@ -44,15 +44,15 @@ def do_predict(checkpoint: Path | None = None, input_dir: Path = Path("dataset")
     if checkpoint is None or not checkpoint.exists():
         raise FileNotFoundError(f"Missing checkpoint: {checkpoint}")
 
+    config = get_config(checkpoint)
+
     train_df = load_dataset("train", input_dir)
     val_df = load_forecast_index(input_dir)
     schema = load_schema(input_dir)
 
-    model_result_dict = predict_for_checkpoint(checkpoint, train_df, val_df, schema)
-    model_result = model_result_dict["result"]
+    model_result = predict_for_checkpoint(checkpoint, config, train_df, val_df, schema)
 
     if output_file is None:
-        config = model_result_dict["config"]
         output_file = Path(os.path.join("predictions", get_configuration_id(config) + ".csv"))
     output_file.parent.mkdir(parents=True, exist_ok=True)
     model_result.to_csv(output_file, index=False)
