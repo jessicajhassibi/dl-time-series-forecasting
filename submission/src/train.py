@@ -43,7 +43,7 @@ def train_model(model: torch.nn.Module, dataset: ForecastDataset, log_dir: str,
             y_pred, y_features_pred = model(x, x_features)
 
             loss = criterion(y, y_pred)
-            if y_features_pred:
+            if y_features_pred is not None:
                 loss += criterion(y_features, y_features_pred)
             loss.backward()
 

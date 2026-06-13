@@ -36,7 +36,7 @@ def predict(model: torch.nn.Module, train_df: pd.DataFrame, val_df: pd.DataFrame
 
         x_values = torch.cat([x_values, y_values], dim=-1)
         x_values = x_values[:, -context_size:]
-        if y_features:
+        if y_features is not None:
             x_features = torch.cat([x_features, y_features], dim=1)
             x_features = x_features[:, -context_size:, :]
 
