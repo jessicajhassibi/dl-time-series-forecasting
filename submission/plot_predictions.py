@@ -1,3 +1,7 @@
+"""A simple plotting script to compare predictions:
+1. Runs all baselines.
+2. Reads all prediction files available in the `predictions` folder.
+3. Runs prediction for the most recent checkpoint found in the `logs` folder."""
 from pathlib import Path
 
 import pandas as pd

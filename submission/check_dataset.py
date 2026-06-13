@@ -1,3 +1,5 @@
+"""A script to load a dataset, iterate over a few batches,
+and print data shapes to see that the dataset is implemented correctly."""
 from itertools import islice
 
 from torch.utils.data import DataLoader

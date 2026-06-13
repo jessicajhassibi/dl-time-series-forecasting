@@ -1,3 +1,7 @@
+"""Training entry point.
+
+Runs training for the model and parameters specified in the command line."""
+
 import os.path
 from datetime import datetime
 

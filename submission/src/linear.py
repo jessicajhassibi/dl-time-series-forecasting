@@ -1,3 +1,4 @@
+"""Linear baseline implementation."""
 import torch
 
 

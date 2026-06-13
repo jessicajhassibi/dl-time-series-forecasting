@@ -1,3 +1,4 @@
+"""Training functions."""
 import os.path
 
 import torch

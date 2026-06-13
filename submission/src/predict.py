@@ -1,3 +1,4 @@
+"""Helper functions to run inference and perform predictions with the trained model."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -13,7 +14,7 @@ from .models import create_model
 
 def predict(model: torch.nn.Module, train_df: pd.DataFrame, val_df: pd.DataFrame,
             schema: Schema, context_size: int, prediction_horizon: int) -> pd.DataFrame:
-    """Run predictions using given model with given training and validation datasets."""
+    """Run predictions using a given model with given training and validation datasets."""
     val_series_ids = schema.get_series_ids(val_df)
 
     x_values = torch.zeros((len(val_series_ids), context_size))
@@ -55,6 +56,7 @@ def predict_for_checkpoint(checkpoint: Path, train_df: pd.DataFrame, val_df: pd.
     config = get_config(checkpoint)
     if not config:
         # TODO use default config if config file is not found
+        # Default config should be the one we submit
         raise ValueError(f"Could not find config file for checkpoint {checkpoint}")
 
     print(f"Using model config {config}")

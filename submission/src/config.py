@@ -1,3 +1,4 @@
+"""Helper functions for reading and writing model configurations."""
 import os
 from pathlib import Path
 from typing import Any
