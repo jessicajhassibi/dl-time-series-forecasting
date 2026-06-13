@@ -23,3 +23,5 @@ class LinearModel(torch.nn.Module):
         if self.use_rev_in:
             x = (x - self.beta) * (std + eps) / (self.gamma + eps) + mean
         return x, None
+
+# TODO add a linear baseline that uses feature columns
