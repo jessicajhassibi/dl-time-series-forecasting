@@ -25,9 +25,11 @@ def run_training(model_name: str = "linear", context_size: int = 336 * 3, predic
         model_config: additional model-specific configuration parameters
         num_epochs: number of epochs to train the model
     """
-    model, is_shifted_output = create_model(model_name, context_size, prediction_horizon, model_config)
     train_df = load_dataset("train")
     schema = load_schema()
+
+    model, is_shifted_output = create_model(model_name, context_size, prediction_horizon, schema, model_config)
+
     train_dataset = ForecastDataset(train_df, schema, context_size=context_size,
                                     prediction_horizon=prediction_horizon,
                                     is_shifted_output=is_shifted_output)

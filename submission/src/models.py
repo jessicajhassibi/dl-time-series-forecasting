@@ -5,17 +5,19 @@ from typing import Any
 
 from torch import nn
 
+from .datasets import Schema
 from .linear import LinearModel
 
 
 def create_model(model_name: str, context_size: int, prediction_horizon: int,
-                 model_config: dict[str, Any] = {}) -> tuple[nn.Module, bool]:
+                 schema: Schema, model_config: dict[str, Any] = {}) -> tuple[nn.Module, bool]:
     """Create a model by given name and parameters.
 
     Args:
         model_name: name of the model to create
         context_size: number of past values to use for the input
         prediction_horizon: number of future values to predict
+        schema: dataset Schema
         model_config: additional model-specific configuration parameters
     Returns:
         A tuple (model, is_shifted_output), where is_shifted_output indicates if the output of the model
