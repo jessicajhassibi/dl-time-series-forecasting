@@ -143,14 +143,15 @@ class ForecastDataset(Dataset[ForecastSample]):
         assert context_size >= 0, f"Negative context_size value {context_size}"
         assert prediction_horizon > 0, f"Non-positive prediction_horizon value {prediction_horizon}"
 
+        df.sort_values(by=[schema.series_id_column, schema.timestamp_column], inplace=True)
+        df[schema.feature_columns] = (df.groupby(schema.series_id_column)[schema.feature_columns]
+                                      .transform(lambda g: g.interpolate(limit_direction="both")))
+
         self.schema = schema
         self.data = df
 
-        # TODO ensure that each group is sorted by timestamp
         self.series_groups = self.schema.get_series_groups(df)
         self.series_ids = self.schema.get_series_ids(df)
-
-        # TODO preprocess dataset to deal with nan values in some of the columns
 
         self.context_size = context_size
         self.prediction_horizon = prediction_horizon
