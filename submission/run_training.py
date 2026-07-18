@@ -8,6 +8,8 @@ To view training logs, run `tensorboard --logdir logs` where "logs" is the name 
 import os.path
 from datetime import datetime
 
+import numpy as np
+import torch
 import tyro
 
 from src.config import write_config
@@ -18,7 +20,7 @@ from src.train import train_model
 
 def run_training(model_name: str = "linear", context_size: int = 336 * 3, prediction_horizon: int = 336,
                  model_config: dict[str, int | float | str] = {},
-                 num_epochs: int = 1, log_dir_name="logs"):
+                 num_epochs: int = 1, log_dir_name="logs", seed: int = 42):
     """Run training for the given model
 
     Args:
@@ -28,7 +30,11 @@ def run_training(model_name: str = "linear", context_size: int = 336 * 3, predic
         model_config: additional model-specific configuration parameters
         num_epochs: number of epochs to train the model
         log_dir_name: name of the directory to save log files and model checkpoints
+        seed: random seed to use
     """
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
     train_df = load_dataset("train")
     schema = load_schema()
 
