@@ -8,7 +8,7 @@ import pandas as pd
 
 from src.baselines import make_all_baselines
 from src.config import get_configuration_id, get_config
-from src.datasets import load_dataset
+from src.datasets import load_dataset, load_forecast_index, Schema
 from src.datasets import load_schema
 from src.plot import plot_prediction_comparison
 from src.plot import plot_series
@@ -23,7 +23,8 @@ def load_previous_predictions(parent_dir: Path = Path("predictions")) -> dict[st
     return result
 
 
-def predict_with_last_checkpoint(log_dir: str = "logs") -> dict[str, pd.DataFrame]:
+def predict_with_last_checkpoint(context_df: pd.DataFrame, forecast_df: pd.DataFrame, schema: Schema,
+                                 log_dir: str = "logs") -> dict[str, pd.DataFrame]:
     checkpoint_path = find_last_checkpoint(log_dir)
     if not checkpoint_path:
         print(f"Could not find checkpoint to use in {log_dir}")
@@ -31,19 +32,19 @@ def predict_with_last_checkpoint(log_dir: str = "logs") -> dict[str, pd.DataFram
 
     print(f"Using last checkpoint: {checkpoint_path}")
     config = get_config(checkpoint_path)
-    model_result = predict_for_checkpoint(checkpoint_path, config, train_df, val_df, schema)
+    model_result = predict_for_checkpoint(checkpoint_path, config, context_df, forecast_df, schema)
     model_id = get_configuration_id(config)
     return {model_id: model_result}
 
 
 if __name__ == "__main__":
-    train_df = load_dataset("train")
-    val_df = load_dataset("validation")
+    context_df = load_dataset("train")
+    forecast_df = load_forecast_index()
     schema = load_schema()
 
-    baselines_results = make_all_baselines(train_df, val_df)
+    baselines_results = make_all_baselines(context_df, forecast_df)
     previous_results = load_previous_predictions()
-    model_results = predict_with_last_checkpoint()
+    model_results = predict_with_last_checkpoint(context_df, forecast_df, schema)
     all_results = dict(baselines_results,
                        **previous_results,
                        **model_results)

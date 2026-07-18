@@ -1,4 +1,6 @@
 """Dataset implementation and helper functions."""
+from __future__ import annotations
+
 import json
 import os
 from dataclasses import dataclass
@@ -53,6 +55,19 @@ def load_metadata(dataset_dir: str | Path = "dataset") -> dict:
         metadata = json.load(f)
     print(f"Reading dataset metadata from {metadata_path}.")
     return metadata
+
+
+def load_forecast_index(dataset_dir: Path = Path("dataset")) -> pd.DataFrame:
+    """Load the rows that need predictions."""
+    candidates = [
+        dataset_dir / "forecast_index_test.csv",
+        dataset_dir / "forecast_index_validation.csv",
+    ]
+    for forecast_index in candidates:
+        if forecast_index.exists():
+            return pd.read_csv(forecast_index)
+    expected = ", ".join(path.name for path in candidates)
+    raise FileNotFoundError(f"Expected one of {expected} in input_dir.")
 
 
 @dataclass(frozen=True)

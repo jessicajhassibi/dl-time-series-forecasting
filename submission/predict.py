@@ -8,26 +8,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-import pandas as pd
 import tyro
 
 from src.config import get_configuration_id, get_config
 from src.datasets import load_dataset, load_schema
 from src.predict import predict_for_checkpoint
 from src.util import find_last_checkpoint
-
-
-def load_forecast_index(input_dir: Path) -> pd.DataFrame:
-    """Load the rows that need predictions."""
-    candidates = [
-        input_dir / "forecast_index_test.csv",
-        input_dir / "forecast_index_validation.csv",
-    ]
-    for forecast_index in candidates:
-        if forecast_index.exists():
-            return pd.read_csv(forecast_index)
-    expected = ", ".join(path.name for path in candidates)
-    raise FileNotFoundError(f"Expected one of {expected} in input_dir.")
+from src.datasets import load_forecast_index
 
 
 def do_predict(checkpoint: Path | None = None, input_dir: Path = Path("dataset"),
