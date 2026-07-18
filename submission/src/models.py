@@ -10,7 +10,7 @@ from .linear import LinearModel
 
 
 def create_model(model_name: str, context_size: int, prediction_horizon: int,
-                 schema: Schema, model_config: dict[str, Any] = {}) -> tuple[nn.Module, bool]:
+                 schema: Schema, model_config: dict[str, Any] = {}) -> nn.Module:
     """Create a model by given name and parameters.
 
     Args:
@@ -20,13 +20,19 @@ def create_model(model_name: str, context_size: int, prediction_horizon: int,
         schema: dataset Schema
         model_config: additional model-specific configuration parameters
     Returns:
-        A tuple (model, is_shifted_output), where is_shifted_output indicates if the output of the model
-        only contains the future values, or if contains the input shifted by the prediction horizon.
+        Model
     """
     # TODO add cnn and possibly other models
     if model_name == "linear":
-        model = LinearModel(context_size, prediction_horizon)
-        is_shifted_output = False
-        return model, is_shifted_output
+        return LinearModel(context_size, prediction_horizon)
     else:
         raise ValueError(f"Unknown model name {model_name}")
+
+
+def is_shifted_output(model_name: str) -> bool:
+    """Indicates if the output of the model only contains the future values,
+       or if contains the input shifted by the prediction horizon"""
+    # TODO add cnn and possibly other models
+    if model_name == "linear":
+        return False
+    raise ValueError(f"Unknown model name {model_name}")

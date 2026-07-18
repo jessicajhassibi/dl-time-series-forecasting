@@ -58,7 +58,7 @@ def predict_for_checkpoint(checkpoint: Path, config: dict[str, Any], train_df: p
     prediction_horizon = config["prediction_horizon"]
     model_config = config.get("model_config", {})
 
-    model, _ = create_model(model_name, context_size, prediction_horizon, schema, model_config)
+    model = create_model(model_name, context_size, prediction_horizon, schema, model_config)
 
     checkpoint: dict = torch.load(checkpoint, map_location="cpu")
     if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
