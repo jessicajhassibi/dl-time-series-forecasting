@@ -60,8 +60,9 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_datas
             inner_loop.set_postfix(loss=batch_loss)
             writer.add_scalar("Train/batch_loss", batch_loss, global_step=global_step)
 
-            is_validation_step = (global_step % validate_step == 0) or (batch_idx == num_batches - 1)
-            if is_validation_enabled and is_validation_step:
+            is_validation_step = (global_step % validate_step == 0) and (global_step > 0)
+            is_last_batch = batch_idx == num_batches - 1
+            if is_validation_enabled and (is_validation_step or is_last_batch):
                 metrics = get_validation_metrics(model, val_dataset)
                 for metric, value in metrics.items():
                     writer.add_scalar(f"Metrics/{metric}", value, global_step=global_step)
