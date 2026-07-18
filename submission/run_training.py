@@ -1,6 +1,9 @@
 """Training entry point.
 
-Runs training for the model and parameters specified in the command line."""
+Runs training for the model and parameters specified in the command line.
+
+To view training logs, run `tensorboard --logdir logs` where "logs" is the name of the directory with log files.
+"""
 
 import os.path
 from datetime import datetime
@@ -15,7 +18,7 @@ from src.train import train_model
 
 def run_training(model_name: str = "linear", context_size: int = 336 * 3, prediction_horizon: int = 336,
                  model_config: dict[str, int | float | str] = {},
-                 num_epochs: int = 1):
+                 num_epochs: int = 1, log_dir_name="logs"):
     """Run training for the given model
 
     Args:
@@ -24,6 +27,7 @@ def run_training(model_name: str = "linear", context_size: int = 336 * 3, predic
         prediction_horizon: size of the model prediction
         model_config: additional model-specific configuration parameters
         num_epochs: number of epochs to train the model
+        log_dir_name: name of the directory to save log files and model checkpoints
     """
     train_df = load_dataset("train")
     schema = load_schema()
@@ -35,7 +39,7 @@ def run_training(model_name: str = "linear", context_size: int = 336 * 3, predic
                                     is_shifted_output=is_shifted_output)
     print(f"Loaded training dataset of length {len(train_dataset)}")
 
-    log_dir = os.path.join("logs", model_name, datetime.now().strftime("%Y_%m_%d_%H_%M_%S"))
+    log_dir = os.path.join(log_dir_name, model_name, datetime.now().strftime("%Y_%m_%d_%H_%M_%S"))
     os.makedirs(log_dir, exist_ok=True)
     print(f"Writing experiment data to {log_dir}")
 
