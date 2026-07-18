@@ -13,9 +13,9 @@ from .models import create_model
 
 def predict(model: torch.nn.Module, context_df: pd.DataFrame, forecast_df: pd.DataFrame,
             schema: Schema, context_size: int, prediction_horizon: int) -> pd.DataFrame:
-    """Run predictions using a given model with given context and forecast datasets.
+    """Run predictions using a given model with given context and forecast dataframes.
     If the forecast dataframe is outside the prediction horizon of the model,
-    run using its model predictions as context to fill the gap.
+    predictions are used as context to fill the gap.
 
     Assumptions:
      - given forecast dataset is a continuous block in the future;
