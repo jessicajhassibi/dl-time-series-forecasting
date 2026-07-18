@@ -49,11 +49,11 @@ def do_predict(checkpoint: Path | None = None, input_dir: Path = Path("dataset")
 
     config = get_config(checkpoint)
 
-    train_df = load_dataset("train", input_dir)
-    val_df = load_forecast_index(input_dir)
+    context_df = load_dataset("train", input_dir)
+    forecast_df = load_forecast_index(input_dir)
     schema = load_schema(input_dir)
 
-    prediction_result = predict_for_checkpoint(checkpoint, config, train_df, val_df, schema)
+    prediction_result = predict_for_checkpoint(checkpoint, config, context_df, forecast_df, schema)
 
     if output_file is None:
         output_file = Path(os.path.join("predictions", get_configuration_id(config) + ".csv"))
