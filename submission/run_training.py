@@ -18,7 +18,7 @@ from src.models import create_model, is_shifted_output
 from src.train import train_model
 
 
-def run_training(model_name: str = "linear", context_size: int = 336 * 3, prediction_horizon: int = 336,
+def run_training(model_name: str = "linear_features", context_size: int = 336 * 3, prediction_horizon: int = 336,
                  model_config: dict[str, int | float | str] = {},
                  num_epochs: int = 1, log_dir_name="logs", seed: int = 42):
     """Run training for the given model
