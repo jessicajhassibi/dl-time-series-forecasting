@@ -66,6 +66,7 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_datas
                 metrics = get_validation_metrics(model, val_dataset)
                 for metric, value in metrics.items():
                     writer.add_scalar(f"Metrics/{metric}", value, global_step=global_step)
+                torch.save(model.state_dict(), os.path.join(log_dir, f"checkpoint-{global_step}.pt"))
 
             global_step += 1
 
@@ -73,7 +74,8 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_datas
             print(f"Validation metrics after epoch {epoch}:")
             print("\n".join([f"\t{k}: {v:.3f}" for k, v in metrics.items()]))
 
-        torch.save(model.state_dict(), os.path.join(log_dir, f"checkpoint-{epoch}.pt"))
+        if not is_validation_enabled:
+            torch.save(model.state_dict(), os.path.join(log_dir, f"checkpoint-{global_step}.pt"))
 
 
 def get_validation_metrics(model: Module, dataset: Dataset[ForecastSample],
