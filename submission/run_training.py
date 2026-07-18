@@ -1,6 +1,6 @@
 """Training entry point.
-
 Runs training for the model and parameters specified in the command line.
+Execute `python run_training.py --help` to see available parameters.
 
 To view training logs, run `tensorboard --logdir logs` where "logs" is the name of the directory with log files.
 """

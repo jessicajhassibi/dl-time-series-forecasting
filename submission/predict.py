@@ -1,4 +1,6 @@
 """Inference entrypoint for final private evaluation.
+
+Execute `python predict.py --help` to see available command-line parameters.
 """
 
 from __future__ import annotations
