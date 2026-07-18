@@ -21,7 +21,7 @@ def predict(model: torch.nn.Module, train_df: pd.DataFrame, val_df: pd.DataFrame
     train_series_groups = schema.get_series_groups(train_df)
     for series_idx, series_id in enumerate(val_series_ids):
         series_df = train_series_groups.get_group(series_id)
-        series_x = torch.Tensor(series_df.iloc[-context_size:][schema.target_column].to_numpy())
+        series_x = torch.Tensor(series_df.iloc[-context_size:][schema.target_column].to_numpy().copy())
         series_features = torch.Tensor(series_df.iloc[-context_size:][schema.feature_columns].to_numpy())
         x_values[series_idx, :] = series_x
         x_features[series_idx, :, :] = series_features

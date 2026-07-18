@@ -186,5 +186,5 @@ class ForecastDataset(Dataset[ForecastSample]):
         ys = series_df.iloc[output_idx_start:output_idx_end][self.schema.target_column].to_numpy()
         y_features = series_df.iloc[output_idx_start:output_idx_end][self.schema.feature_columns].to_numpy()
 
-        return ForecastSample(x=Tensor(xs), y=Tensor(ys),
-                              x_features=Tensor(x_features), y_features=Tensor(y_features), )
+        return ForecastSample(x=Tensor(xs.copy()), y=Tensor(ys.copy()),
+                              x_features=Tensor(x_features.copy()), y_features=Tensor(y_features.copy()), )
