@@ -49,7 +49,9 @@ def run_training(model_name: str = "linear", context_size: int = 336 * 3, predic
     os.makedirs(log_dir, exist_ok=True)
     print(f"Writing experiment data to {log_dir}")
 
-    write_config(log_dir, model_name, context_size, prediction_horizon, model_config)
+    write_config(log_dir, model_name, context_size, prediction_horizon,
+                 model_config=model_config,
+                 train_config=dict(seed=seed))
 
     train_model(model, train_dataset, log_dir, num_epochs=num_epochs)
 
