@@ -42,6 +42,7 @@ def do_predict(checkpoint: Path | None = None, input_dir: Path = Path("dataset")
     """
     if checkpoint is None:
         checkpoint = find_last_checkpoint()
+        print(f"Using checkpoint {checkpoint}")
 
     if checkpoint is None or not checkpoint.exists():
         raise FileNotFoundError(f"Missing checkpoint: {checkpoint}")
@@ -52,12 +53,12 @@ def do_predict(checkpoint: Path | None = None, input_dir: Path = Path("dataset")
     val_df = load_forecast_index(input_dir)
     schema = load_schema(input_dir)
 
-    model_result = predict_for_checkpoint(checkpoint, config, train_df, val_df, schema)
+    prediction_result = predict_for_checkpoint(checkpoint, config, train_df, val_df, schema)
 
     if output_file is None:
         output_file = Path(os.path.join("predictions", get_configuration_id(config) + ".csv"))
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    model_result.to_csv(output_file, index=False)
+    prediction_result.to_csv(output_file, index=False)
     print(f"Written predictions to {output_file}")
 
 
