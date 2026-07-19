@@ -1,16 +1,12 @@
 """Helper functions to run inference and perform predictions with the trained model."""
 from __future__ import annotations
 
-from pathlib import Path
-
 import pandas as pd
 import torch
 from pandas import DataFrame
 from torch.nn import Module
 
-from .config import Config
 from .datasets import Schema, get_slice_as_tensor
-from .models import create_model
 
 
 def predict(model: torch.nn.Module, context_df: pd.DataFrame, forecast_df: pd.DataFrame,
@@ -84,21 +80,3 @@ def predict_tensor(model: Module, context_df: DataFrame, schema: Schema, context
             x_features = x_features[:, -context_size:, :]
 
     return result
-
-
-def predict_for_checkpoint(checkpoint: Path, config: Config, context_df: pd.DataFrame,
-                           forecast_df: pd.DataFrame, schema: Schema) -> pd.DataFrame:
-    print(f"Using model config {config}")
-
-    model = create_model(config, schema)
-
-    checkpoint: dict = torch.load(checkpoint, map_location="cpu")
-    if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
-        model.load_state_dict(checkpoint["state_dict"])
-    elif isinstance(checkpoint, dict):
-        model.load_state_dict(checkpoint)
-    else:
-        raise ValueError("Checkpoint must be a state_dict or a dict containing `state_dict`.")
-
-    model.eval()
-    return predict(model, context_df, forecast_df, schema, config.context_size, config.prediction_horizon)

@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 import torch
 from torch.nn import Module
+from torch.optim import Optimizer
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -37,13 +38,7 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_datas
     global_step = 0
 
     if checkpoint is not None:
-        checkpoint_dict: dict = torch.load(checkpoint)
-        model.load_state_dict(checkpoint_dict['state_dict'])
-        optimizer.load_state_dict(checkpoint_dict['optimizer_state_dict'])
-        start_epoch = checkpoint_dict.get('epoch', -1) + 1
-        global_step = checkpoint_dict.get('global_step', -1) + 1
-        # TODO this does not start training on the exactly same location
-        #  if training was stopped in the middle of the epoch
+        global_step, start_epoch = load_model(checkpoint, model, optimizer)
 
     model.train()
 
@@ -81,9 +76,7 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_datas
                 metrics = get_validation_metrics(model, val_dataset)
                 for metric, value in metrics.items():
                     writer.add_scalar(f"Metrics/{metric}", value, global_step=global_step)
-                torch.save(dict(epoch=epoch, global_step=global_step,
-                                state_dict=model.state_dict(), optimizer_state_dict=optimizer.state_dict()),
-                           os.path.join(log_dir, f"checkpoint-{global_step}.pt"))
+                save_model(model, optimizer, epoch, global_step, log_dir)
 
             global_step += 1
 
@@ -92,9 +85,26 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_datas
             print("\n".join([f"\t{k}: {v:.3f}" for k, v in metrics.items()]))
 
         if not is_validation_enabled:
-            torch.save(dict(epoch=epoch, global_step=global_step - 1,
-                            state_dict=model.state_dict(), optimizer_state_dict=optimizer.state_dict()),
-                       os.path.join(log_dir, f"checkpoint-{global_step}.pt"))
+            save_model(model, optimizer, epoch, global_step - 1, log_dir)
+
+
+def load_model(checkpoint: Path, model: Module, optimizer: Optimizer | None = None,
+               device: str | None = None) -> tuple[int, int]:
+    checkpoint_dict: dict = torch.load(checkpoint, map_location=device)
+    model.load_state_dict(checkpoint_dict['state_dict'])
+    if optimizer is not None:
+        optimizer.load_state_dict(checkpoint_dict['optimizer_state_dict'])
+    start_epoch = checkpoint_dict.get('epoch', -1) + 1
+    global_step = checkpoint_dict.get('global_step', -1) + 1
+    # TODO this does not start training on the exactly same location
+    #  if training was stopped in the middle of the epoch
+    return global_step, start_epoch
+
+
+def save_model(model: Module, optimizer: Optimizer, epoch: int, global_step: int, log_dir: str):
+    torch.save(dict(epoch=epoch, global_step=global_step,
+                    state_dict=model.state_dict(), optimizer_state_dict=optimizer.state_dict()),
+               os.path.join(log_dir, f"checkpoint-{global_step}.pt"))
 
 
 def get_validation_metrics(model: Module, dataset: Dataset[ForecastSample],

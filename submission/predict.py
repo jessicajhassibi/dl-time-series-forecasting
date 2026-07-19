@@ -13,7 +13,9 @@ import tyro
 from src.config import get_config
 from src.datasets import load_dataset, load_schema, preprocess_dataset
 from src.datasets import load_forecast_index
-from src.predict import predict_for_checkpoint
+from src.models import create_model
+from src.predict import predict
+from src.train import load_model
 from src.util import find_last_checkpoint
 
 
@@ -34,15 +36,21 @@ def do_predict(checkpoint: Path | None = None, input_dir: Path = Path("dataset")
     if checkpoint is None or not checkpoint.exists():
         raise FileNotFoundError(f"Missing checkpoint: {checkpoint}")
 
-    config, _ = get_config(checkpoint)
-
     context_df = load_dataset("train", input_dir)
     forecast_df = load_forecast_index(input_dir)
     schema = load_schema(input_dir)
 
     preprocess_dataset(context_df, schema)
 
-    prediction_result = predict_for_checkpoint(checkpoint, config, context_df, forecast_df, schema)
+    config, _ = get_config(checkpoint)
+    print(f"Using model config {config}")
+
+    model = create_model(config, schema)
+    load_model(checkpoint, model, device="cpu")
+    model.eval()
+
+    prediction_result = predict(model, context_df, forecast_df, schema,
+                                config.context_size, config.prediction_horizon)
 
     if output_file is None:
         output_file = Path(os.path.join("predictions", config.get_id() + ".csv"))

@@ -12,8 +12,10 @@ from src.datasets import load_dataset, load_forecast_index, Schema, preprocess_d
 from src.datasets import load_schema
 from src.plot import plot_prediction_comparison
 from src.plot import plot_series
-from src.predict import predict_for_checkpoint
 from src.util import find_last_checkpoint
+from src.models import create_model
+from src.predict import predict
+from src.train import load_model
 
 
 def load_previous_predictions(parent_dir: Path = Path("predictions")) -> dict[str, pd.DataFrame]:
@@ -31,8 +33,15 @@ def predict_with_last_checkpoint(context_df: pd.DataFrame, forecast_df: pd.DataF
         return {}
 
     print(f"Using last checkpoint: {checkpoint_path}")
+
     config, _ = get_config(checkpoint_path)
-    model_result = predict_for_checkpoint(checkpoint_path, config, context_df, forecast_df, schema)
+    print(f"Using model config {config}")
+
+    model = create_model(config, schema)
+    load_model(checkpoint_path, model, device="cpu")
+    model.eval()
+    model_result = predict(model, context_df, forecast_df, schema,
+                           config.context_size, config.prediction_horizon)
     model_id = config.get_id()
     return {model_id: model_result}
 
