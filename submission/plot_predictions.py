@@ -6,16 +6,15 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.baselines import make_all_baselines
 from src.config import get_config
 from src.datasets import load_dataset, load_forecast_index, Schema, preprocess_dataset
 from src.datasets import load_schema
-from src.plot import plot_prediction_comparison
-from src.plot import plot_series
-from src.util import find_last_checkpoint
-from src.models import create_model
+from src.model_registry import create_model
+from src.models.baselines import make_all_baselines
 from src.predict import predict
 from src.train import load_model
+from src.util.plot import plot_prediction_comparison, plot_series
+from src.util.util import find_last_checkpoint
 
 
 def load_previous_predictions(parent_dir: Path = Path("predictions")) -> dict[str, pd.DataFrame]:

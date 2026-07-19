@@ -5,7 +5,7 @@ from __future__ import annotations
 import torch
 
 
-class ForecastModel(torch.nn.Module):
+class TCN(torch.nn.Module):
     """Replace this placeholder with your forecasting architecture."""
 
     def __init__(self, context_size: int, prediction_horizon: int) -> None:

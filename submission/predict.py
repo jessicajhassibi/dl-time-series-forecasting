@@ -13,10 +13,10 @@ import tyro
 from src.config import get_config
 from src.datasets import load_dataset, load_schema, preprocess_dataset
 from src.datasets import load_forecast_index
-from src.models import create_model
+from src.model_registry import create_model
 from src.predict import predict
 from src.train import load_model
-from src.util import find_last_checkpoint
+from src.util.util import find_last_checkpoint
 
 
 def do_predict(checkpoint: Path | None = None, input_dir: Path = Path("dataset"),

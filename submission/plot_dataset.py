@@ -9,7 +9,7 @@ from plotly.subplots import make_subplots
 from scipy.stats import pearsonr
 
 from src.datasets import load_dataset, load_schema
-from src.plot import plot_series
+from src.util.plot import plot_series
 
 
 def partition_keys(df: pd.DataFrame, keys: list[str], eps=1e-6) -> tuple[list[str], list[str]]:

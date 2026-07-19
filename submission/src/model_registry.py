@@ -5,7 +5,7 @@ from torch import nn
 
 from .config import Config
 from .datasets import Schema
-from .linear import LinearModel, LinearModelWithFeatures
+from .models.linear import LinearModel, LinearModelWithFeatures
 
 
 def create_model(config: Config, schema: Schema) -> nn.Module:

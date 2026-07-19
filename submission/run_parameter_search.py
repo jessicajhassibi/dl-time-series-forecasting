@@ -8,7 +8,7 @@ import tyro
 from src.config import write_config, Config
 from src.datasets import ForecastDataset
 from src.datasets import load_dataset, load_schema
-from src.models import create_model, is_shifted_output
+from src.model_registry import create_model, is_shifted_output
 from src.train import train_model, get_long_horizon_validation_metrics
 from src.datasets import preprocess_dataset
 from src.config import TrainConfig
