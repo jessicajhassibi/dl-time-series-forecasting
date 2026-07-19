@@ -6,6 +6,8 @@ from typing import Any
 
 import pandas as pd
 import torch
+from pandas import DataFrame
+from torch.nn import Module
 
 from .datasets import Schema, get_slice_as_tensor
 from .models import create_model
@@ -33,15 +35,6 @@ def predict(model: torch.nn.Module, context_df: pd.DataFrame, forecast_df: pd.Da
     Return:
         A copy of forecast_df with a filled prediction column.
     """
-    forecast_series_ids = schema.get_series_ids(forecast_df)
-
-    # Get initial context tensors for predictions
-    context_series_groups = schema.get_series_groups(context_df)
-    x_values = get_slice_as_tensor(context_series_groups, forecast_series_ids, slice(-context_size, None),
-                                   schema.target_column)
-    x_features = get_slice_as_tensor(context_series_groups, forecast_series_ids, slice(-context_size, None),
-                                     schema.feature_columns)
-
     # Calculate how many steps (hours) in the future to predict
     forecast_timestamps = pd.to_datetime(forecast_df[schema.timestamp_column])
     min_forecast_timestamp = forecast_timestamps.min()
@@ -51,6 +44,31 @@ def predict(model: torch.nn.Module, context_df: pd.DataFrame, forecast_df: pd.Da
     forecast_size = int((max_forecast_timestamp - min_forecast_timestamp).total_seconds() / 60 / 60) + 1
     forecast_horizon = int((max_forecast_timestamp - max_context_timestamp).total_seconds() / 60 / 60)
     print(f"Forecast size is {forecast_size}, forecast horizon is {forecast_horizon}")
+
+    forecast_series_ids = schema.get_series_ids(forecast_df)
+
+    result = predict_tensor(model, context_df, schema, context_size, prediction_horizon, forecast_series_ids,
+                            forecast_horizon).detach().numpy()
+
+    # Fill the dataframe with predictions by taking forecast_size values for each series
+    # TODO use the timestamps in the forecast dataset for each series instead of just taking last block of values.
+    result_df = forecast_df[[schema.series_id_column, schema.timestamp_column]].copy()
+    result_df[schema.prediction_column] = 0.0
+    for series_idx, series_id in enumerate(forecast_series_ids):
+        series_mask = result_df[schema.series_id_column].eq(series_id)
+        result_df.loc[series_mask, [schema.prediction_column]] = result[series_idx, -forecast_size:]
+
+    return result_df
+
+
+def predict_tensor(model: Module, context_df: DataFrame, schema: Schema, context_size: int,
+                   prediction_horizon: int, forecast_series_ids: list[str], forecast_horizon: int) -> torch.Tensor:
+    # Get initial context tensors for predictions
+    context_series_groups = schema.get_series_groups(context_df)
+    x_values = get_slice_as_tensor(context_series_groups, forecast_series_ids, slice(-context_size, None),
+                                   schema.target_column)
+    x_features = get_slice_as_tensor(context_series_groups, forecast_series_ids, slice(-context_size, None),
+                                     schema.feature_columns)
 
     # Run the model until reaching the forecast horizon
     result = torch.zeros((len(forecast_series_ids), forecast_horizon))
@@ -65,17 +83,7 @@ def predict(model: torch.nn.Module, context_df: pd.DataFrame, forecast_df: pd.Da
             x_features = torch.cat([x_features, y_features], dim=1)
             x_features = x_features[:, -context_size:, :]
 
-    result = result.detach().numpy()
-
-    # Fill the dataframe with predictions by taking forecast_size values for each series
-    # TODO use the timestamps in the forecast dataset for each series instead of just taking last block of values.
-    result_df = forecast_df[[schema.series_id_column, schema.timestamp_column]].copy()
-    result_df[schema.prediction_column] = 0.0
-    for series_idx, series_id in enumerate(forecast_series_ids):
-        series_mask = result_df[schema.series_id_column].eq(series_id)
-        result_df.loc[series_mask, [schema.prediction_column]] = result[series_idx, -forecast_size:]
-
-    return result_df
+    return result
 
 
 def predict_for_checkpoint(checkpoint: Path, config: dict[str, Any], context_df: pd.DataFrame,

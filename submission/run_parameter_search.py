@@ -1,25 +1,28 @@
 import os
+from copy import replace
 from datetime import datetime
 
 import numpy as np
 import torch
 import tyro
-from torch.utils.data import Subset
 
 from src.config import write_config
 from src.datasets import ForecastDataset
 from src.datasets import load_dataset, load_schema
 from src.models import create_model, is_shifted_output
-from src.train import train_model, get_validation_metrics
+from src.train import train_model, get_long_horizon_validation_metrics
+from src.datasets import preprocess_dataset
 
 
-def run_search(model_name: str = "linear", context_sizes: list[int] = [24, 7 * 24, 336],
-               prediction_horizons: list[int] = [24, 3 * 24, 7 * 24],
+def run_search(model_name: str = "linear_features", context_sizes: list[int] = [7 * 24, 2 * 7 * 24, 30 * 24],
+               prediction_horizons: list[int] = [7 * 24, 2 * 7 * 24, 4 * 7 * 24],
                model_config: dict[str, int | float | str] = {},
-               num_epochs: int = 1, subset_size: int = 10000, log_dir_name="logs",
+               num_epochs: int = 1,
+               n_samples_per_series: int = 2000, n_predictions: int = 2 * 7 * 24, log_dir_name="logs",
                seeds: list[int] = [0, 42, 239], metric_name: str = "wape"):
     """
-    Run training on a smaller subset of the dataset for several random seeds, compute the specified metric,
+    Run training on a smaller block of the dataset for several random seeds,
+    predict a block of values into the future, compute the WAPE metric,
      and select context size and prediction horizon values with the lowest score.
 
      Args:
@@ -28,7 +31,8 @@ def run_search(model_name: str = "linear", context_sizes: list[int] = [24, 7 * 2
          prediction_horizons: prediction horizon values to check
          model_config: additional model-specific parameters
          num_epochs: number of training epochs
-         subset_size: size of the subset to train on
+         n_samples_per_series: number of samples per series to use for training
+         n_predictions: how many future values to predict for validation
          log_dir_name: name of the log directory
          seeds: random seeds to use
          metric_name: metric to use for comparison
@@ -39,17 +43,26 @@ def run_search(model_name: str = "linear", context_sizes: list[int] = [24, 7 * 2
     dataframe = load_dataset("train")
     schema = load_schema()
 
+    preprocess_dataset(dataframe, schema)
+
     result = np.ones((len(context_sizes), len(prediction_horizons))) * float('inf')
     for ci, context_size in enumerate(context_sizes):
         for pi, prediction_horizon in enumerate(prediction_horizons):
             if prediction_horizon > context_size:
                 continue
 
-            print(f"Running training for context size {context_size} and prediction horizon {prediction_horizon}.")
-            dataset = ForecastDataset(dataframe, schema, context_size=context_size,
+            n_train = n_samples_per_series + context_size + prediction_horizon - 1
+
+            print(f"Running training for context size {context_size} and prediction horizon {prediction_horizon}"
+                  f" with series length {n_train} and prediction size {n_predictions}.")
+
+            train_df = schema.get_series_groups(dataframe).head(n_train).copy()
+            train_schema = replace(schema, n_training_steps=n_train)
+
+            dataset = ForecastDataset(train_df, train_schema, context_size=context_size,
                                       prediction_horizon=prediction_horizon,
                                       is_shifted_output=is_shifted_output(model_name))
-            value = 0.0
+            total_score = 0.0
             for seed in seeds:
                 np.random.seed(seed)
                 torch.manual_seed(seed)
@@ -64,16 +77,16 @@ def run_search(model_name: str = "linear", context_sizes: list[int] = [24, 7 * 2
                              model_config=model_config,
                              train_config=dict(seed=seed))
 
-                random_indices = torch.randperm(len(dataset))[:min(subset_size, len(dataset))].tolist()
-                random_subset = Subset(dataset, random_indices)
-                train_dataset, val_dataset = torch.utils.data.random_split(random_subset, [0.9, 0.1])
-                train_model(model, train_dataset, None, log_dir, num_epochs, 128, -1)
-                metrics = get_validation_metrics(model, val_dataset)
+                train_model(model, dataset, None, log_dir, num_epochs, 128, -1)
+
+                metrics = get_long_horizon_validation_metrics(model, context_size, prediction_horizon, dataframe,
+                                                              schema, n_train, n_predictions)
                 if not metric_name in metrics:
                     raise ValueError(f"Metric {metric_name} is not found. Available metrics: {metrics.keys()}.")
-                value += metrics[metric_name]
-
-            result[ci, pi] = value / len(seeds)
+                total_score = total_score + metrics[metric_name]
+            total_score = total_score / len(seeds)
+            print(f"Score for context size {context_size} and prediction horizon {prediction_horizon}: {total_score}")
+            result[ci, pi] = total_score
 
     print(f"Metric values:\n{result}.")
 

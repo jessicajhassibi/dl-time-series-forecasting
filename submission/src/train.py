@@ -2,13 +2,15 @@
 import os.path
 from pathlib import Path
 
+import pandas as pd
 import torch
 from torch.nn import Module
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from .datasets import ForecastSample
+from .datasets import ForecastSample, Schema, get_slice_as_tensor
+from .predict import predict_tensor
 
 
 def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_dataset: Dataset[ForecastSample] | None,
@@ -125,6 +127,33 @@ def get_validation_metrics(model: Module, dataset: Dataset[ForecastSample],
             sum_values = sum_values + torch.sum(torch.abs(y)).item()
         # TODO add additional metrics
         wape = sum_error / sum_values
+
+    model.train(mode=training_mode)
+
+    return dict(wape=wape)
+
+
+def get_long_horizon_validation_metrics(model: Module, context_size: int, prediction_horizon: int,
+                                        dataframe: pd.DataFrame, schema: Schema, prediction_start: int,
+                                        n_predictions: int) -> dict[str, float]:
+    """Run predictions for a time interval in the future.
+    This may require the model to use its own predictions as input, which can amplify prediction errors."""
+    training_mode = model.training
+    model.eval()
+
+    with torch.no_grad():
+        series_ids = schema.get_series_ids(dataframe)
+        series_groups = schema.get_series_groups(dataframe)
+        context_df = series_groups.head(prediction_start)
+        predicted_values = predict_tensor(model, context_df, schema, context_size, prediction_horizon,
+                                          series_ids, n_predictions)
+        actual_values = get_slice_as_tensor(series_groups, series_ids,
+                                            slice(prediction_start, prediction_start + n_predictions),
+                                            schema.target_column)
+
+        assert predicted_values.shape == actual_values.shape
+
+        wape = torch.sum(torch.abs(predicted_values - actual_values)) / torch.sum(torch.abs(actual_values)).item()
 
     model.train(mode=training_mode)
 
