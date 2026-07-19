@@ -178,6 +178,10 @@ class ForecastDataset(Dataset[ForecastSample]):
         self.prediction_horizon = prediction_horizon
         self.is_shifted_output = is_shifted_output
 
+        if self.n_chunks < 0:
+            raise ValueError(f"Not enough steps in each series ({self.schema.n_training_steps}) "
+                             f"for the dataset with context size {self.context_size} and prediction horizon {self.prediction_horizon}")
+
     @property
     def n_chunks(self) -> int:
         """Number of chunks we can split each series into"""
