@@ -1,5 +1,6 @@
 """Training functions."""
 import os.path
+from pathlib import Path
 
 import torch
 from torch.nn import Module
@@ -11,7 +12,8 @@ from .datasets import ForecastSample
 
 
 def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_dataset: Dataset[ForecastSample] | None,
-                log_dir: str, num_epochs: int = 1, batch_size: int = 128, validate_step: int = 500):
+                log_dir: str, num_epochs: int = 1, batch_size: int = 128, validate_step: int = 500,
+                checkpoint: Path | None = None):
     """
     Train the model on the provided dataset.
 
@@ -23,20 +25,31 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_datas
         num_epochs: number of epochs
         batch_size: batch size
         validate_step: number of training steps between validations, negative value means to skip validation
+        checkpoint: checkpoint location to resume training
     """
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
-    model.train()
-
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.01)
     criterion = torch.nn.MSELoss()
-    writer = SummaryWriter(log_dir=log_dir)
+    start_epoch = 0
     global_step = 0
 
+    if checkpoint is not None:
+        checkpoint_dict: dict = torch.load(checkpoint)
+        model.load_state_dict(checkpoint_dict['state_dict'])
+        optimizer.load_state_dict(checkpoint_dict['optimizer_state_dict'])
+        start_epoch = checkpoint_dict.get('epoch', -1) + 1
+        global_step = checkpoint_dict.get('global_step', -1) + 1
+        # TODO this does not start training on the exactly same location
+        #  if training was stopped in the middle of the epoch
+
+    model.train()
+
+    writer = SummaryWriter(log_dir=log_dir)
     metrics = {}
     is_validation_enabled = validate_step > 0 and (val_dataset is not None)
 
-    for epoch in range(num_epochs):
+    for epoch in range(start_epoch, start_epoch + num_epochs):
         num_batches = len(train_loader)
         inner_loop = tqdm(enumerate(train_loader), total=num_batches)
         for batch_idx, sample in inner_loop:
@@ -66,7 +79,9 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_datas
                 metrics = get_validation_metrics(model, val_dataset)
                 for metric, value in metrics.items():
                     writer.add_scalar(f"Metrics/{metric}", value, global_step=global_step)
-                torch.save(model.state_dict(), os.path.join(log_dir, f"checkpoint-{global_step}.pt"))
+                torch.save(dict(epoch=epoch, global_step=global_step,
+                                state_dict=model.state_dict(), optimizer_state_dict=optimizer.state_dict()),
+                           os.path.join(log_dir, f"checkpoint-{global_step}.pt"))
 
             global_step += 1
 
@@ -75,7 +90,9 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_datas
             print("\n".join([f"\t{k}: {v:.3f}" for k, v in metrics.items()]))
 
         if not is_validation_enabled:
-            torch.save(model.state_dict(), os.path.join(log_dir, f"checkpoint-{global_step}.pt"))
+            torch.save(dict(epoch=epoch, global_step=global_step - 1,
+                            state_dict=model.state_dict(), optimizer_state_dict=optimizer.state_dict()),
+                       os.path.join(log_dir, f"checkpoint-{global_step}.pt"))
 
 
 def get_validation_metrics(model: Module, dataset: Dataset[ForecastSample],

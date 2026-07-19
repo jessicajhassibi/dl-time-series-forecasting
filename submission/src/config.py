@@ -10,16 +10,25 @@ import yaml
 CONFIG_FILE_NAME = "config.yml"
 
 
-def get_config(checkpoint_path: str | Path) -> dict[str, Any]:
-    """Loads the configuration file for the given checkpoint.
+def get_config_if_exists(checkpoint_path: str | Path) -> dict[str, Any] | None:
+    """Load the configuration file for the given checkpoint or return None if not found.
     Configuration file is expected to be located in the same folder as the checkpoint."""
     checkpoint_dir = os.path.dirname(checkpoint_path)
     config_path = os.path.join(checkpoint_dir, CONFIG_FILE_NAME)
     if not os.path.exists(config_path):
-        # TODO use default config if config file is not found
-        # Default config should be the one we submit
-        raise ValueError(f"Could not find config file for checkpoint {checkpoint_path}")
+        return None
     return yaml.safe_load(open(config_path, "r"))
+
+
+def get_config(checkpoint_path: str | Path) -> dict[str, Any]:
+    """Load the configuration file for the given checkpoint.
+    Configuration file is expected to be located in the same folder as the checkpoint."""
+    config = get_config_if_exists(checkpoint_path)
+    if config is not None:
+        return config
+    # TODO use default config if config file is not found
+    # Default config should be the one we submit
+    raise ValueError(f"Could not find config file for checkpoint {checkpoint_path}")
 
 
 def write_config(log_dir: str, model_name: str, context_size: int, prediction_horizon: int,

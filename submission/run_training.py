@@ -6,12 +6,13 @@ To view training logs, run `tensorboard --logdir logs` where "logs" is the name 
 """
 import os
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import torch
 import tyro
 
-from src.config import write_config
+from src.config import write_config, get_config_if_exists
 from src.datasets import ForecastDataset
 from src.datasets import load_dataset, load_schema
 from src.models import create_model, is_shifted_output
@@ -20,7 +21,8 @@ from src.train import train_model
 
 def run_training(model_name: str = "linear_features", context_size: int = 336 * 3, prediction_horizon: int = 336,
                  model_config: dict[str, int | float | str] = {},
-                 num_epochs: int = 1, log_dir_name="logs", seed: int = 42):
+                 num_epochs: int = 1, log_dir_name="logs", seed: int = 42,
+                 checkpoint: Path | None = None):
     """Run training for the given model
 
     Args:
@@ -31,7 +33,21 @@ def run_training(model_name: str = "linear_features", context_size: int = 336 * 
         num_epochs: number of epochs to train the model
         log_dir_name: name of the directory to save log files and model checkpoints
         seed: random seed to use
+        checkpoint: path to checkpoint to resume training from.
+                    If a checkpoint is given, its configuration overrides the parameters provided in the command line.
     """
+    if checkpoint is not None:
+        config = get_config_if_exists(checkpoint)
+
+        if config is not None:
+            print(f"Using configuration found for checkpoint {config}")
+
+            model_name = config["model_name"]
+            context_size = config["context_size"]
+            prediction_horizon = config["prediction_horizon"]
+            model_config = config.get("model_config", {})
+            seed = config.get("train_config", {}).get("seed", seed)
+
     print(f"Running training for the {model_name} model.")
 
     np.random.seed(seed)
@@ -57,7 +73,8 @@ def run_training(model_name: str = "linear_features", context_size: int = 336 * 
                  train_config=dict(seed=seed))
 
     train_dataset, val_dataset = torch.utils.data.random_split(dataset, [0.9, 0.1])
-    train_model(model, train_dataset, val_dataset, log_dir, num_epochs=num_epochs)
+    train_model(model, train_dataset, val_dataset, log_dir, num_epochs=num_epochs,
+                checkpoint=checkpoint)
 
 
 if __name__ == "__main__":
