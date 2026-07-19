@@ -3,15 +3,15 @@ from copy import replace
 from datetime import datetime
 
 import numpy as np
-import torch
 import tyro
 
-from src.config import write_config
+from src.config import write_config, Config
 from src.datasets import ForecastDataset
 from src.datasets import load_dataset, load_schema
 from src.models import create_model, is_shifted_output
 from src.train import train_model, get_long_horizon_validation_metrics
 from src.datasets import preprocess_dataset
+from src.config import TrainConfig
 
 
 def run_search(model_name: str = "linear_features", context_sizes: list[int] = [7 * 24, 2 * 7 * 24, 30 * 24],
@@ -62,20 +62,20 @@ def run_search(model_name: str = "linear_features", context_sizes: list[int] = [
             dataset = ForecastDataset(train_df, train_schema, context_size=context_size,
                                       prediction_horizon=prediction_horizon,
                                       is_shifted_output=is_shifted_output(model_name))
+            config = Config(model_name, context_size, prediction_horizon, model_config)
+
             total_score = 0.0
             for seed in seeds:
-                np.random.seed(seed)
-                torch.manual_seed(seed)
+                train_config = TrainConfig(seed=seed)
+                train_config.set_seed()
 
-                model = create_model(model_name, context_size, prediction_horizon, schema, model_config)
+                model = create_model(config, schema)
 
                 run_name = datetime.now().strftime("%Y_%m_%d_%H_%M_%S") + f"_{context_size}_{prediction_horizon}_{seed}"
                 log_dir = os.path.join(log_dir_name, model_name, "parameter_search", run_name)
                 os.makedirs(log_dir, exist_ok=True)
 
-                write_config(log_dir, model_name, context_size, prediction_horizon,
-                             model_config=model_config,
-                             train_config=dict(seed=seed))
+                write_config(log_dir, config, train_config)
 
                 train_model(model, dataset, None, log_dir, num_epochs, 128, -1)
 

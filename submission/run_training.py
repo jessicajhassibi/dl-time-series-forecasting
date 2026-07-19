@@ -8,15 +8,15 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-import numpy as np
 import torch
 import tyro
 
-from src.config import write_config, get_config_if_exists
+from src.config import write_config, get_config_if_exists, Config
 from src.datasets import ForecastDataset
 from src.datasets import load_dataset, load_schema
 from src.models import create_model, is_shifted_output
 from src.train import train_model
+from src.config import TrainConfig
 
 
 def run_training(model_name: str = "linear_features", context_size: int = 336 * 3, prediction_horizon: int = 336,
@@ -36,27 +36,26 @@ def run_training(model_name: str = "linear_features", context_size: int = 336 * 
         checkpoint: path to checkpoint to resume training from.
                     If a checkpoint is given, its configuration overrides the parameters provided in the command line.
     """
-    if checkpoint is not None:
-        config = get_config_if_exists(checkpoint)
+    config = Config(model_name, context_size, prediction_horizon, model_config)
+    train_config = TrainConfig(seed=seed)
 
-        if config is not None:
+    if checkpoint is not None:
+        checkpoint_config = get_config_if_exists(checkpoint)
+
+        if checkpoint_config is not None:
             print(f"Using configuration found for checkpoint {config}")
 
-            model_name = config["model_name"]
-            context_size = config["context_size"]
-            prediction_horizon = config["prediction_horizon"]
-            model_config = config.get("model_config", {})
-            seed = config.get("train_config", {}).get("seed", seed)
+            config = checkpoint_config[0]
+            train_config = checkpoint_config[1]
 
     print(f"Running training for the {model_name} model.")
 
-    np.random.seed(seed)
-    torch.manual_seed(seed)
+    train_config.set_seed()
 
     dataframe = load_dataset("train")
     schema = load_schema()
 
-    model = create_model(model_name, context_size, prediction_horizon, schema, model_config)
+    model = create_model(config, schema)
 
     dataset = ForecastDataset(dataframe, schema, context_size=context_size,
                               prediction_horizon=prediction_horizon,
@@ -68,9 +67,7 @@ def run_training(model_name: str = "linear_features", context_size: int = 336 * 
     os.makedirs(log_dir, exist_ok=True)
     print(f"Writing experiment data to {log_dir}")
 
-    write_config(log_dir, model_name, context_size, prediction_horizon,
-                 model_config=model_config,
-                 train_config=dict(seed=seed))
+    write_config(log_dir, config, train_config)
 
     train_dataset, val_dataset = torch.utils.data.random_split(dataset, [0.9, 0.1])
     train_model(model, train_dataset, val_dataset, log_dir, num_epochs=num_epochs,

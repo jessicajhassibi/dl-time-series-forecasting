@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.baselines import make_all_baselines
-from src.config import get_configuration_id, get_config
+from src.config import get_config
 from src.datasets import load_dataset, load_forecast_index, Schema, preprocess_dataset
 from src.datasets import load_schema
 from src.plot import plot_prediction_comparison
@@ -31,9 +31,9 @@ def predict_with_last_checkpoint(context_df: pd.DataFrame, forecast_df: pd.DataF
         return {}
 
     print(f"Using last checkpoint: {checkpoint_path}")
-    config = get_config(checkpoint_path)
+    config, _ = get_config(checkpoint_path)
     model_result = predict_for_checkpoint(checkpoint_path, config, context_df, forecast_df, schema)
-    model_id = get_configuration_id(config)
+    model_id = config.get_id()
     return {model_id: model_result}
 
 
