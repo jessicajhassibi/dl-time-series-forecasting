@@ -8,7 +8,7 @@ import pandas as pd
 
 from src.baselines import make_all_baselines
 from src.config import get_configuration_id, get_config
-from src.datasets import load_dataset, load_forecast_index, Schema
+from src.datasets import load_dataset, load_forecast_index, Schema, preprocess_dataset
 from src.datasets import load_schema
 from src.plot import plot_prediction_comparison
 from src.plot import plot_series
@@ -41,6 +41,8 @@ if __name__ == "__main__":
     context_df = load_dataset("train")
     forecast_df = load_forecast_index()
     schema = load_schema()
+
+    preprocess_dataset(context_df, schema)
 
     baselines_results = make_all_baselines(context_df, forecast_df)
     previous_results = load_previous_predictions()

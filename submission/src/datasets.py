@@ -9,6 +9,7 @@ from typing import TypedDict
 
 import pandas as pd
 from huggingface_hub import snapshot_download
+from pandas import DataFrame
 from pandas.core.groupby import DataFrameGroupBy
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -125,6 +126,13 @@ def load_schema(dataset_dir: str | Path = "dataset") -> Schema:
     return Schema.from_metadata(metadata)
 
 
+def preprocess_dataset(df: DataFrame, schema: Schema):
+    """Preprocess dataset by sorting each series by timestamp and interpolating nan values."""
+    df.sort_values(by=[schema.series_id_column, schema.timestamp_column], inplace=True)
+    df[schema.feature_columns] = (df.groupby(schema.series_id_column)[schema.feature_columns]
+                                  .transform(lambda g: g.interpolate(limit_direction="both")))
+
+
 class ForecastSample(TypedDict):
     """Sample of the timeseries dataset"""
     x: Tensor
@@ -158,9 +166,7 @@ class ForecastDataset(Dataset[ForecastSample]):
         assert context_size >= 0, f"Negative context_size value {context_size}"
         assert prediction_horizon > 0, f"Non-positive prediction_horizon value {prediction_horizon}"
 
-        df.sort_values(by=[schema.series_id_column, schema.timestamp_column], inplace=True)
-        df[schema.feature_columns] = (df.groupby(schema.series_id_column)[schema.feature_columns]
-                                      .transform(lambda g: g.interpolate(limit_direction="both")))
+        preprocess_dataset(df, schema)
 
         self.schema = schema
         self.data = df

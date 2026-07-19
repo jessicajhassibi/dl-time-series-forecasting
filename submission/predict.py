@@ -11,7 +11,7 @@ from pathlib import Path
 import tyro
 
 from src.config import get_configuration_id, get_config
-from src.datasets import load_dataset, load_schema
+from src.datasets import load_dataset, load_schema, preprocess_dataset
 from src.predict import predict_for_checkpoint
 from src.util import find_last_checkpoint
 from src.datasets import load_forecast_index
@@ -39,6 +39,8 @@ def do_predict(checkpoint: Path | None = None, input_dir: Path = Path("dataset")
     context_df = load_dataset("train", input_dir)
     forecast_df = load_forecast_index(input_dir)
     schema = load_schema(input_dir)
+
+    preprocess_dataset(context_df, schema)
 
     prediction_result = predict_for_checkpoint(checkpoint, config, context_df, forecast_df, schema)
 
