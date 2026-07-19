@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TypedDict
 
 import pandas as pd
+import torch
 from huggingface_hub import snapshot_download
 from pandas import DataFrame
 from pandas.core.groupby import DataFrameGroupBy
@@ -131,6 +132,25 @@ def preprocess_dataset(df: DataFrame, schema: Schema):
     df.sort_values(by=[schema.series_id_column, schema.timestamp_column], inplace=True)
     df[schema.feature_columns] = (df.groupby(schema.series_id_column)[schema.feature_columns]
                                   .transform(lambda g: g.interpolate(limit_direction="both")))
+
+
+def get_slice_as_tensor(groups: DataFrameGroupBy, series_ids: list[str],
+                        indices: slice, columns: list[str] | str) -> Tensor:
+    """Get groups with provided series_ids, extract data by provided indices and select provided columns.
+    Args:
+        groups: dataframe grouped by series id
+        series_ids: ids of series to use
+        indices: slice to extract
+        columns: column or columns to use
+    Returns:
+        Tensor of shape (num_series, num_indices, num_columns) or (num_series, num_indices) if one column is given.
+        """
+    result = []
+    for series_idx, series_id in enumerate(series_ids):
+        series_df = groups.get_group(series_id)
+        series_slice = Tensor(series_df.iloc[indices][columns].to_numpy().copy())
+        result.append(series_slice)
+    return torch.stack(result)
 
 
 class ForecastSample(TypedDict):

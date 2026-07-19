@@ -7,7 +7,7 @@ from typing import Any
 import pandas as pd
 import torch
 
-from .datasets import Schema
+from .datasets import Schema, get_slice_as_tensor
 from .models import create_model
 
 
@@ -35,16 +35,12 @@ def predict(model: torch.nn.Module, context_df: pd.DataFrame, forecast_df: pd.Da
     """
     forecast_series_ids = schema.get_series_ids(forecast_df)
 
-    # Fill initial context tensors for predictions
-    x_values = torch.zeros((len(forecast_series_ids), context_size))
-    x_features = torch.zeros((len(forecast_series_ids), context_size, len(schema.feature_columns)))
+    # Get initial context tensors for predictions
     context_series_groups = schema.get_series_groups(context_df)
-    for series_idx, series_id in enumerate(forecast_series_ids):
-        series_df = context_series_groups.get_group(series_id)
-        series_x = torch.Tensor(series_df.iloc[-context_size:][schema.target_column].to_numpy().copy())
-        series_features = torch.Tensor(series_df.iloc[-context_size:][schema.feature_columns].to_numpy())
-        x_values[series_idx, :] = series_x
-        x_features[series_idx, :, :] = series_features
+    x_values = get_slice_as_tensor(context_series_groups, forecast_series_ids, slice(-context_size, None),
+                                   schema.target_column)
+    x_features = get_slice_as_tensor(context_series_groups, forecast_series_ids, slice(-context_size, None),
+                                     schema.feature_columns)
 
     # Calculate how many steps (hours) in the future to predict
     forecast_timestamps = pd.to_datetime(forecast_df[schema.timestamp_column])
