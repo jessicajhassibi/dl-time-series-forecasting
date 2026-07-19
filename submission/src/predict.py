@@ -60,7 +60,8 @@ def predict(model: torch.nn.Module, context_df: pd.DataFrame, forecast_df: pd.Da
     result = torch.zeros((len(forecast_series_ids), forecast_horizon))
     for timestep in range(0, forecast_horizon, prediction_horizon):
         y_values, y_features = model(x_values, x_features)
-        result[:, timestep:min(timestep + prediction_horizon, forecast_horizon)] = y_values
+        copied_size = min(prediction_horizon, forecast_horizon - timestep)
+        result[:, timestep:timestep + copied_size] = y_values[:, :copied_size]
 
         x_values = torch.cat([x_values, y_values], dim=-1)
         x_values = x_values[:, -context_size:]
