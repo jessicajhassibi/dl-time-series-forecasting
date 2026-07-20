@@ -9,7 +9,7 @@ from .models.linear import LinearModel, LinearModelWithFeatures
 
 
 def create_model(config: Config, schema: Schema) -> nn.Module:
-    """Create a model by given name and parameters.
+    """Create a model for a given configuration and dataset schema.
 
     Args:
         config: configuration for creating the model
