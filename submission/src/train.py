@@ -146,8 +146,21 @@ def get_validation_metrics(model: Module, dataset: Dataset[ForecastSample],
 def get_long_horizon_validation_metrics(model: Module, context_size: int, prediction_horizon: int,
                                         dataframe: pd.DataFrame, schema: Schema, prediction_start: int,
                                         n_predictions: int) -> dict[str, float]:
-    """Run predictions for a time interval in the future.
-    This may require the model to use its own predictions as input, which can amplify prediction errors."""
+    """Run predictions for a time interval in the future and compute accuracy metrics.
+    This may require the model to use its own predictions as input, which can amplify prediction errors.
+
+    Args:
+        model: model to use
+        context_size: context size of the model
+        prediction_horizon: prediction horizon of the model
+        dataframe: dataset to use for validation
+        schema: dataset schema
+        prediction_start: the timestep at which to start predictions.
+                          The data before this timestep are going to be used as context.
+        n_predictions: how many steps in the future to predict.
+                       Can be greater than the model prediction horizon to test if the model can make long-term predictions.
+    Returns:
+        Dictionary containing metrics names and metric values."""
     training_mode = model.training
     model.eval()
 
