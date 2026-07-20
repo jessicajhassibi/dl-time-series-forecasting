@@ -102,6 +102,7 @@ def load_model(checkpoint: Path, model: Module, optimizer: Optimizer | None = No
 
 
 def save_model(model: Module, optimizer: Optimizer, epoch: int, global_step: int, log_dir: str):
+    # TODO we can save model config to checkpoint as well
     torch.save(dict(epoch=epoch, global_step=global_step,
                     state_dict=model.state_dict(), optimizer_state_dict=optimizer.state_dict()),
                os.path.join(log_dir, f"checkpoint-{global_step}.pt"))
