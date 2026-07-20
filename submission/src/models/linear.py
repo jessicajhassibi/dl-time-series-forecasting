@@ -33,16 +33,21 @@ class LinearModelWithFeatures(torch.nn.Module):
                  use_rev_in: bool = True, eps: float = 1e-7):
         super().__init__()
         self.column_linear = LinearModel(context_size, prediction_horizon, use_rev_in, eps)
-        self.row_linear = torch.nn.Linear(in_features=n_features + 1, out_features=1, bias=False)
+        self.row_linear = torch.nn.Linear(in_features=n_features + 1, out_features=n_features + 1, bias=False)
 
     def forward(self, x: torch.Tensor, x_features: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None]:
-        y, _ = self.column_linear(x)
+        # combine x and x_features together into one tensor
+        columns = torch.cat([x[:, :, None], x_features], dim=-1)
+        batch_size, size, n_cols = columns.shape
 
-        batch_size, size, n_cols = x_features.shape
-        y_features, _ = self.column_linear(x_features.permute(0, 2, 1).reshape(-1, size))
-        y_features = y_features.reshape(batch_size, n_cols, -1).permute(0, 2, 1)
+        # apply linear layer to all columns
+        column_output, _ = self.column_linear(columns.permute(0, 2, 1).reshape(-1, size))
+        column_output = column_output.reshape(batch_size, n_cols, -1).permute(0, 2, 1)
 
-        rows = torch.cat([y[:, :, None], y_features], dim=-1)
-        y = self.row_linear(rows).reshape(batch_size, -1)
+        # apply another linear layer to all rows to get final prediction
+        row_output = self.row_linear(column_output)
+
+        y = row_output[:, :, 0]
+        y_features = row_output[:, :, 1:]
 
         return y, y_features
