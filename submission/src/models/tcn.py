@@ -1,4 +1,4 @@
-"""Placeholder PyTorch model for the final submission template."""
+"""Temporal Convolutional Network implementation"""
 
 from __future__ import annotations
 
@@ -6,13 +6,14 @@ import torch
 
 
 class TCN(torch.nn.Module):
-    """Replace this placeholder with your forecasting architecture."""
+    """Temporal Convolutional Network (TCN)"""
 
-    def __init__(self, context_size: int, prediction_horizon: int) -> None:
+    def __init__(self, context_size: int, prediction_horizon: int, num_features: int) -> None:
         """Create the placeholder one-parameter model."""
         super().__init__()
         self.bias = torch.nn.Parameter(torch.zeros(()))
 
     def forward(self, x: torch.Tensor, x_features: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None]:
         """Return the input shifted by the learned scalar bias."""
-        return x + self.bias, None
+        # TODO implement tcn
+        return x + self.bias, x_features + self.bias
