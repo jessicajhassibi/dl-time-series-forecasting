@@ -38,6 +38,8 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_datas
 
     if checkpoint is not None:
         global_step, start_epoch = load_model(checkpoint, model, optimizer)
+        print(f"Loaded model and optimizer weights from checkpoint {checkpoint}.\n"
+              f"Global step: {global_step}, start epoch: {start_epoch}.")
 
     model.train()
 
