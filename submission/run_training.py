@@ -74,4 +74,5 @@ def run_training(model_name: str = "linear_features", context_size: int = 336 * 
 
 
 if __name__ == "__main__":
+    # TODO switch to two separate commands: train and resume
     tyro.cli(run_training)
