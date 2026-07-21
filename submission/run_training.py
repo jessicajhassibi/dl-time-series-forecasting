@@ -11,12 +11,10 @@ from pathlib import Path
 import torch
 import tyro
 
-from src.config import write_config, get_config_if_exists, Config
-from src.datasets import ForecastDataset
-from src.datasets import load_dataset, load_schema
+from src.config import TrainConfig, write_config, get_config_if_exists, Config
+from src.datasets import ForecastDataset, load_dataset, load_schema
 from src.model_registry import create_model, is_shifted_output
 from src.train import train_model
-from src.config import TrainConfig
 
 
 def run_training(model_name: str = "linear_features", context_size: int = 336 * 3, prediction_horizon: int = 336,
@@ -43,12 +41,12 @@ def run_training(model_name: str = "linear_features", context_size: int = 336 * 
         checkpoint_config = get_config_if_exists(checkpoint)
 
         if checkpoint_config is not None:
-            print(f"Using configuration found for checkpoint {config}")
+            print(f"Using configuration found for checkpoint {checkpoint_config}")
 
             config = checkpoint_config[0]
             train_config = checkpoint_config[1]
 
-    print(f"Running training for the {model_name} model.")
+    print(f"Running training for the {config.model_name} model.")
 
     train_config.set_seed()
 
@@ -57,13 +55,14 @@ def run_training(model_name: str = "linear_features", context_size: int = 336 * 
 
     model = create_model(config, schema)
 
-    dataset = ForecastDataset(dataframe, schema, context_size=context_size,
-                              prediction_horizon=prediction_horizon,
-                              is_shifted_output=is_shifted_output(model_name))
+    dataset = ForecastDataset(dataframe, schema, context_size=config.context_size,
+                              prediction_horizon=config.prediction_horizon,
+                              is_shifted_output=is_shifted_output(config.model_name))
     print(f"Loaded training dataset of length {len(dataset)}")
 
-    run_dir = datetime.now().strftime("%Y_%m_%d_%H_%M_%S") + f"_{context_size}_{prediction_horizon}_{seed}"
-    log_dir = os.path.join(log_dir_name, model_name, run_dir)
+    run_dir = (datetime.now().strftime("%Y_%m_%d_%H_%M_%S") +
+               f"_{config.context_size}_{config.prediction_horizon}_{train_config.seed}")
+    log_dir = os.path.join(log_dir_name, config.model_name, run_dir)
     os.makedirs(log_dir, exist_ok=True)
     print(f"Writing experiment data to {log_dir}")
 
