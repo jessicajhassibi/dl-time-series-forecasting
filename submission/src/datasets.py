@@ -75,7 +75,8 @@ def load_forecast_index(dataset_dir: Path = Path("dataset")) -> pd.DataFrame:
 @dataclass(frozen=True)
 class Schema:
     """
-    Defines dataset schema.
+    Defines dataset schema (e.g. column names to use for training and predictions,
+    number of elements in each series, how many series there are, etc.).
     """
     series_id_column: str
     """Column with the id of the individual series"""
@@ -92,9 +93,6 @@ class Schema:
     """Number of series in the dataset"""
     n_training_steps: int
     """Number of training steps in each series"""
-
-    validation_horizon: int
-    test_horizon: int
 
     def get_series_ids(self, df: pd.DataFrame) -> list[str]:
         """Return a sorted list of unique series ids in the given dataset"""
@@ -117,8 +115,7 @@ class Schema:
         n_training_steps = metadata["n_steps"] - validation_horizon - test_horizon
         return Schema(series_id_column="series_id", target_column=target, timestamp_column="timestamp",
                       prediction_column="prediction",
-                      feature_columns=feature_keys, n_series=n_series, n_training_steps=n_training_steps,
-                      validation_horizon=validation_horizon, test_horizon=test_horizon)
+                      feature_columns=feature_keys, n_series=n_series, n_training_steps=n_training_steps)
 
 
 def load_schema(dataset_dir: str | Path = "dataset") -> Schema:
@@ -173,7 +170,7 @@ class ForecastDataset(Dataset[ForecastSample]):
     def __init__(self, df: pd.DataFrame, schema: Schema, context_size: int, prediction_horizon: int = 1,
                  is_shifted_output: bool = False):
         """
-        Create the ForecastingDataset.
+        Create the ForecastDataset.
 
         Args:
             df: dataset
