@@ -94,6 +94,9 @@ class Schema:
     n_training_steps: int
     """Number of training steps in each series"""
 
+    validation_horizon: int
+    test_horizon: int
+
     def get_series_ids(self, df: pd.DataFrame) -> list[str]:
         """Return a sorted list of unique series ids in the given dataset"""
         return sorted(df[self.series_id_column].unique())
@@ -115,7 +118,8 @@ class Schema:
         n_training_steps = metadata["n_steps"] - validation_horizon - test_horizon
         return Schema(series_id_column="series_id", target_column=target, timestamp_column="timestamp",
                       prediction_column="prediction",
-                      feature_columns=feature_keys, n_series=n_series, n_training_steps=n_training_steps)
+                      feature_columns=feature_keys, n_series=n_series, n_training_steps=n_training_steps,
+                      validation_horizon=validation_horizon, test_horizon=test_horizon)
 
 
 def load_schema(dataset_dir: str | Path = "dataset") -> Schema:
