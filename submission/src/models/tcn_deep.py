@@ -43,7 +43,7 @@ class TemporalBlock(nn.Module):
 class TCNDeep(nn.Module):
     """Single-shot TCN forecaster with RevIN on the target and per-instance feature normalization."""
 
-    def __init__(self, context_size: int, prediction_horizon: int, num_features: int,
+    def __init__(self, prediction_horizon: int, num_features: int,
                  hidden: int = 64, levels: int = 7, kernel_size: int = 3,
                  dropout: float = 0.1, use_rev_in: bool = True, eps: float = 1e-7) -> None:
         super().__init__()

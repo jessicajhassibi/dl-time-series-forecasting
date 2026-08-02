@@ -10,13 +10,11 @@ from pathlib import Path
 
 import tyro
 
-from src.config import get_config
-from src.datasets import load_dataset, load_schema, preprocess_dataset
-from src.datasets import load_forecast_index
-from src.model_registry import create_model
+from src.datasets import load_dataset, load_schema, preprocess_dataset, load_forecast_index
+from src.model_registry import create_model, get_config
 from src.predict import predict
 from src.train import load_model
-from src.util.util import find_last_checkpoint
+from src.util.util import find_last_checkpoint, pick_device
 
 
 def do_predict(checkpoint: Path | None = None, input_dir: Path = Path("dataset"),
@@ -42,15 +40,18 @@ def do_predict(checkpoint: Path | None = None, input_dir: Path = Path("dataset")
 
     preprocess_dataset(context_df, schema)
 
-    config, _ = get_config(checkpoint)
+    config = get_config(checkpoint)
     print(f"Using model config {config}")
 
-    model = create_model(config, schema)
-    load_model(checkpoint, model, device="cpu")
+    device = pick_device()
+    print(f"Using device {device}")
+
+    model = create_model(config, schema).to(device)
+    load_model(checkpoint, model, device=device)
     model.eval()
 
     prediction_result = predict(model, context_df, forecast_df, schema,
-                                config.context_size, config.prediction_horizon)
+                                config.context_size, config.prediction_horizon, device=device)
 
     if output_file is None:
         output_file = Path(os.path.join("predictions", config.get_id() + ".csv"))

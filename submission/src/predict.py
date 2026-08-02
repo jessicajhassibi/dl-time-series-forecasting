@@ -10,7 +10,8 @@ from .datasets import Schema, get_slice_as_tensor
 
 
 def predict(model: torch.nn.Module, context_df: pd.DataFrame, forecast_df: pd.DataFrame,
-            schema: Schema, context_size: int, prediction_horizon: int) -> pd.DataFrame:
+            schema: Schema, context_size: int, prediction_horizon: int,
+            device: str | torch.device = "cpu") -> pd.DataFrame:
     """Run predictions using a given model with given context and forecast dataframes.
     If the forecast dataframe is outside the prediction horizon of the model,
     predictions are used as context to fill the gap.
@@ -27,6 +28,7 @@ def predict(model: torch.nn.Module, context_df: pd.DataFrame, forecast_df: pd.Da
         schema: dataset schema
         context_size: context size of the model
         prediction_horizon: prediction horizon of the model
+        device: device to use
 
     Return:
         A copy of forecast_df with a filled prediction column.
@@ -44,7 +46,7 @@ def predict(model: torch.nn.Module, context_df: pd.DataFrame, forecast_df: pd.Da
     forecast_series_ids = schema.get_series_ids(forecast_df)
 
     result = predict_tensor(model, context_df, schema, context_size, prediction_horizon, forecast_series_ids,
-                            forecast_horizon).detach().numpy()
+                            forecast_horizon, device=device).detach().numpy()
 
     # Fill the dataframe with predictions by taking forecast_size values for each series
     # TODO use the timestamps in the forecast dataset for each series instead of just taking last block of values.
@@ -58,16 +60,17 @@ def predict(model: torch.nn.Module, context_df: pd.DataFrame, forecast_df: pd.Da
 
 
 def predict_tensor(model: Module, context_df: DataFrame, schema: Schema, context_size: int,
-                   prediction_horizon: int, forecast_series_ids: list[str], forecast_horizon: int) -> torch.Tensor:
+                   prediction_horizon: int, forecast_series_ids: list[str], forecast_horizon: int,
+                   device: str | torch.device = "cpu") -> torch.Tensor:
     # Get initial context tensors for predictions
     context_series_groups = schema.get_series_groups(context_df)
     x_values = get_slice_as_tensor(context_series_groups, forecast_series_ids, slice(-context_size, None),
-                                   schema.target_column)
+                                   schema.target_column, device=device)
     x_features = get_slice_as_tensor(context_series_groups, forecast_series_ids, slice(-context_size, None),
-                                     schema.feature_columns)
+                                     schema.feature_columns, device=device)
 
     # Run the model until reaching the forecast horizon
-    result = torch.zeros((len(forecast_series_ids), forecast_horizon))
+    result = torch.zeros((len(forecast_series_ids), forecast_horizon), device=device)
     for timestep in range(0, forecast_horizon, prediction_horizon):
         y_values, y_features = model(x_values, x_features)
         copied_size = min(prediction_horizon, forecast_horizon - timestep)

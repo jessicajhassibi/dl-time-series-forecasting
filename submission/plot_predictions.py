@@ -5,11 +5,10 @@
 from pathlib import Path
 
 import pandas as pd
+import torch
 
-from src.config import get_config
-from src.datasets import load_dataset, load_forecast_index, Schema, preprocess_dataset
-from src.datasets import load_schema
-from src.model_registry import create_model
+from src.datasets import load_dataset, load_forecast_index, load_schema, Schema, preprocess_dataset
+from src.model_registry import create_model, get_config
 from src.models.baselines import make_all_baselines
 from src.predict import predict
 from src.train import load_model
@@ -25,7 +24,7 @@ def load_previous_predictions(parent_dir: Path = Path("predictions")) -> dict[st
 
 
 def predict_with_last_checkpoint(context_df: pd.DataFrame, forecast_df: pd.DataFrame, schema: Schema,
-                                 log_dir: str = "logs") -> dict[str, pd.DataFrame]:
+                                 log_dir: str = "logs", device: str | torch.device = "cpu") -> dict[str, pd.DataFrame]:
     checkpoint_path = find_last_checkpoint(log_dir)
     if not checkpoint_path:
         print(f"Could not find checkpoint to use in {log_dir}")
@@ -33,11 +32,11 @@ def predict_with_last_checkpoint(context_df: pd.DataFrame, forecast_df: pd.DataF
 
     print(f"Using last checkpoint: {checkpoint_path}")
 
-    config, _ = get_config(checkpoint_path)
+    config = get_config(checkpoint_path)
     print(f"Using model config {config}")
 
-    model = create_model(config, schema)
-    load_model(checkpoint_path, model, device="cpu")
+    model = create_model(config, schema).to(device=device)
+    load_model(checkpoint_path, model, device=device)
     model.eval()
     model_result = predict(model, context_df, forecast_df, schema,
                            config.context_size, config.prediction_horizon)

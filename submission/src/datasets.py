@@ -118,7 +118,8 @@ class Schema:
         n_training_steps = metadata["n_steps"] - validation_horizon - test_horizon
         return Schema(series_id_column="series_id", target_column=target, timestamp_column="timestamp",
                       prediction_column="prediction",
-                      feature_columns=feature_keys, n_series=n_series, n_training_steps=n_training_steps,
+                      feature_columns=feature_keys,
+                      n_series=n_series, n_training_steps=n_training_steps,
                       validation_horizon=validation_horizon, test_horizon=test_horizon)
 
 
@@ -136,20 +137,22 @@ def preprocess_dataset(df: DataFrame, schema: Schema):
 
 
 def get_slice_as_tensor(groups: DataFrameGroupBy, series_ids: list[str],
-                        indices: slice, columns: list[str] | str) -> Tensor:
+                        indices: slice, columns: list[str] | str,
+                        device: str | torch.device = "cpu") -> Tensor:
     """Get groups with provided series_ids, extract data by provided indices and select provided columns.
     Args:
         groups: dataframe grouped by series id
         series_ids: ids of series to use
         indices: slice to extract
         columns: column or columns to use
+        device: device to use
     Returns:
         Tensor of shape (num_series, num_indices, num_columns) or (num_series, num_indices) if one column is given.
         """
     result = []
     for series_idx, series_id in enumerate(series_ids):
         series_df = groups.get_group(series_id)
-        series_slice = Tensor(series_df.iloc[indices][columns].to_numpy().copy())
+        series_slice = torch.tensor(series_df.iloc[indices][columns].to_numpy().copy(), dtype=torch.float, device=device)
         result.append(series_slice)
     return torch.stack(result)
 
@@ -172,7 +175,7 @@ class ForecastDataset(Dataset[ForecastSample]):
     """
 
     def __init__(self, df: pd.DataFrame, schema: Schema, context_size: int, prediction_horizon: int = 1,
-                 is_shifted_output: bool = False):
+                 is_shifted_output: bool = False, device: str | torch.device = "cpu"):
         """
         Create the ForecastDataset.
 
@@ -183,6 +186,7 @@ class ForecastDataset(Dataset[ForecastSample]):
             prediction_horizon: number of future values to predict
             is_shifted_output: if the output should only contain the future values,
                                or if it should be the input shifted by the prediction horizon.
+            device: device to create tensors on
         """
         assert context_size >= 0, f"Negative context_size value {context_size}"
         assert prediction_horizon > 0, f"Non-positive prediction_horizon value {prediction_horizon}"
@@ -198,6 +202,8 @@ class ForecastDataset(Dataset[ForecastSample]):
         self.context_size = context_size
         self.prediction_horizon = prediction_horizon
         self.is_shifted_output = is_shifted_output
+
+        self.device = device
 
         if self.n_chunks < 0:
             raise ValueError(f"Not enough steps in each series ({self.schema.n_training_steps}) "
@@ -232,5 +238,7 @@ class ForecastDataset(Dataset[ForecastSample]):
         ys = series_df.iloc[output_idx_start:output_idx_end][self.schema.target_column].to_numpy()
         y_features = series_df.iloc[output_idx_start:output_idx_end][self.schema.feature_columns].to_numpy()
 
-        return ForecastSample(x=Tensor(xs.copy()), y=Tensor(ys.copy()),
-                              x_features=Tensor(x_features.copy()), y_features=Tensor(y_features.copy()), )
+        return ForecastSample(x=torch.tensor(xs.copy(), dtype=torch.float, device=self.device),
+                              y=torch.tensor(ys.copy(), dtype=torch.float, device=self.device),
+                              x_features=torch.tensor(x_features.copy(), dtype=torch.float, device=self.device),
+                              y_features=torch.tensor(y_features.copy(), dtype=torch.float, device=self.device))

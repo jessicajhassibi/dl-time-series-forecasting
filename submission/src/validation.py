@@ -1,5 +1,5 @@
 """Validation functions to evaluate prediction results using various metrics."""
-from abc import ABC, abstractmethod
+import math
 from contextlib import contextmanager
 
 import pandas as pd
@@ -12,36 +12,27 @@ from .datasets import ForecastSample, Schema, get_slice_as_tensor
 from .predict import predict_tensor
 
 
-class Metric(ABC):
-    """Base class for validation metrics."""
-    name: str
-
-    @abstractmethod
-    def add_batch(self, predicted_values: torch.Tensor, actual_values: torch.Tensor):
-        pass
-
-    @abstractmethod
-    def compute(self) -> float:
-        pass
-
-
-class Wape(Metric):
-    name: str = "wape"
-
+class Metrics:
     def __init__(self):
-        self.sum_error = 0.0
-        self.sum_values = 0.0
+        self.error_sum = 0.0
+        self.error_squared_sum = 0.0
+        self.value_sum = 0.0
+        self.count = 0
 
-    def add_batch(self, predicted_values: torch.Tensor, actual_values: torch.Tensor):
-        self.sum_error = self.sum_error + torch.sum(torch.abs(actual_values - predicted_values)).item()
-        self.sum_values = self.sum_values + torch.sum(torch.abs(actual_values)).item()
+    def add_batch(self, predicted_values: torch.Tensor, actual_values: torch.Tensor) -> Metrics:
+        diff = actual_values - predicted_values
+        self.error_sum += diff.abs().sum().item()
+        self.error_squared_sum += (diff ** 2).sum().item()
+        self.value_sum += actual_values.abs().sum().item()
+        self.count += actual_values.numel()
 
-    def compute(self) -> float:
-        return self.sum_error / self.sum_values
+        return self
 
-
-# TODO add additional metrics
-METRICS_LIST = [Wape]
+    def compute(self) -> dict[str, float]:
+        # TODO add additional metrics ?
+        return dict(WAPE=self.error_sum / self.value_sum,
+                    MAE=self.error_sum / self.count,
+                    RMSE=math.sqrt(self.error_squared_sum / self.count))
 
 
 @contextmanager
@@ -77,25 +68,25 @@ def get_validation_metrics(model: Module, dataset: Dataset[ForecastSample],
         dictionary containing metric names and metric values
     """
     with evaluate(model):
-        val_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+        val_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
-        metrics = [m() for m in METRICS_LIST]
+        metrics = Metrics()
         for sample in tqdm(val_loader, desc="Computing validation metrics", position=1, leave=False):
             x = sample['x']
             y = sample['y']
             x_features = sample['x_features']
             y_pred, _ = model(x, x_features)
 
-            for m in metrics:
-                m.add_batch(y_pred, y)
-        result = {m.name: m.compute() for m in metrics}
+            metrics.add_batch(y_pred, y)
+        result = metrics.compute()
 
     return result
 
 
 def get_long_horizon_validation_metrics(model: Module, context_size: int, prediction_horizon: int,
                                         dataframe: pd.DataFrame, schema: Schema, prediction_start: int,
-                                        n_predictions: int) -> dict[str, float]:
+                                        n_predictions: int,
+                                        device: str | torch.device = "cpu") -> dict[str, float]:
     """Run predictions for a time interval in the future and compute accuracy metrics.
     This may require the model to use its own predictions as input, which can amplify prediction errors.
 
@@ -109,6 +100,7 @@ def get_long_horizon_validation_metrics(model: Module, context_size: int, predic
                           The data before this timestep are going to be used as context.
         n_predictions: how many steps in the future to predict.
                        Can be greater than the model prediction horizon to test if the model can make long-term predictions.
+        device: device to use
     Returns:
         Dictionary containing metrics names and metric values."""
     with evaluate(model):
@@ -116,16 +108,12 @@ def get_long_horizon_validation_metrics(model: Module, context_size: int, predic
         series_groups = schema.get_series_groups(dataframe)
         context_df = series_groups.head(prediction_start)
         predicted_values = predict_tensor(model, context_df, schema, context_size, prediction_horizon,
-                                          series_ids, n_predictions)
+                                          series_ids, n_predictions, device)
         actual_values = get_slice_as_tensor(series_groups, series_ids,
                                             slice(prediction_start, prediction_start + n_predictions),
-                                            schema.target_column)
+                                            schema.target_column, device)
 
         assert predicted_values.shape == actual_values.shape
 
-        metrics = [m() for m in METRICS_LIST]
-        for m in metrics:
-            m.add_batch(predicted_values, actual_values)
-        result = {m.name: m.compute() for m in metrics}
-
+        result = Metrics().add_batch(predicted_values, actual_values).compute()
     return result

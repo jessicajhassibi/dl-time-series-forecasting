@@ -13,30 +13,25 @@ import tyro
 
 from src.config import TrainConfig, write_config, get_config_if_exists, Config
 from src.datasets import ForecastDataset, load_dataset, load_schema
-from src.model_registry import create_model, is_shifted_output
+from src.model_registry import create_model, is_shifted_output, get_default_config
 from src.train import train_model
+from src.util.util import pick_device
 
 
-def run_training(model_name: str = "linear_features", context_size: int = 336 * 3, prediction_horizon: int = 336,
-                 model_config: dict[str, int | float | str] = {},
-                 num_epochs: int = 1, log_dir_name="logs", seed: int = 42,
+def run_training(config: Config = get_default_config("tcn"),
+                 train_config: TrainConfig = TrainConfig(),
+                 num_epochs: int = 1, log_dir_name="logs",
                  checkpoint: Path | None = None):
     """Run training for the given model
 
     Args:
-        model_name: name of the model to train
-        context_size: size of the context for the model to use
-        prediction_horizon: size of the model prediction
-        model_config: additional model-specific configuration parameters
+        config: model parameters
+        train_config: training parameters
         num_epochs: number of epochs to train the model
         log_dir_name: name of the directory to save log files and model checkpoints
-        seed: random seed to use
         checkpoint: path to checkpoint to resume training from.
                     If a checkpoint is given, its configuration overrides the parameters provided in the command line.
     """
-    config = Config(model_name, context_size, prediction_horizon, model_config)
-    train_config = TrainConfig(seed=seed)
-
     if checkpoint is not None:
         checkpoint_config = get_config_if_exists(checkpoint)
 
@@ -50,14 +45,18 @@ def run_training(model_name: str = "linear_features", context_size: int = 336 * 
 
     train_config.set_seed()
 
+    device = pick_device()
+    print(f"Using device: {device}")
+
     dataframe = load_dataset("train")
     schema = load_schema()
 
-    model = create_model(config, schema)
+    model = create_model(config, schema).to(device=device)
 
     dataset = ForecastDataset(dataframe, schema, context_size=config.context_size,
                               prediction_horizon=config.prediction_horizon,
-                              is_shifted_output=is_shifted_output(config.model_name))
+                              is_shifted_output=is_shifted_output(config.model_name),
+                              device=device)
     print(f"Loaded training dataset of length {len(dataset)}")
 
     run_dir = (datetime.now().strftime("%Y_%m_%d_%H_%M_%S") +
@@ -68,11 +67,12 @@ def run_training(model_name: str = "linear_features", context_size: int = 336 * 
 
     write_config(log_dir, config, train_config)
 
-    train_dataset, val_dataset = torch.utils.data.random_split(dataset, [0.9, 0.1])
-    train_model(model, train_dataset, val_dataset, log_dir, num_epochs=num_epochs,
-                checkpoint=checkpoint)
+    train_dataset, val_dataset = torch.utils.data.random_split(dataset, [0.9, 0.1],
+                                                               generator=train_config.create_random_generator())
+    train_model(model, train_dataset, val_dataset, train_config, log_dir, num_epochs=num_epochs,
+                checkpoint=checkpoint, device=device)
 
 
 if __name__ == "__main__":
-    # TODO switch to two separate commands: train and resume
-    tyro.cli(run_training)
+    # TODO refactor model config, maybe switch to multiple commands (one command for each model)
+    tyro.cli(run_training, use_underscores=True)

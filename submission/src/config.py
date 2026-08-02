@@ -32,10 +32,17 @@ class Config:
 class TrainConfig:
     """Training configuration"""
     seed: int = 42
+    batch_size: int = 256
+    lr: float = 1e-3
+    weight_decay: float = 1e-2
+    huber_delta: float = 1.0
 
     def set_seed(self):
         np.random.seed(self.seed)
         torch.manual_seed(self.seed)
+
+    def create_random_generator(self) -> torch.Generator:
+        return torch.Generator().manual_seed(self.seed)
 
 
 CONFIG_FILE_NAME = "config.yml"
@@ -50,17 +57,6 @@ def get_config_if_exists(checkpoint_path: str | Path) -> tuple[Config, TrainConf
         return None
     config_dict = yaml.safe_load(open(config_path, "r"))
     return Config(**config_dict["config"]), TrainConfig(**config_dict["train_config"])
-
-
-def get_config(checkpoint_path: str | Path) -> tuple[Config, TrainConfig]:
-    """Load the configuration file for the given checkpoint.
-    Configuration file is expected to be located in the same folder as the checkpoint."""
-    config = get_config_if_exists(checkpoint_path)
-    if config is not None:
-        return config
-    # TODO use default config if config file is not found
-    # Default config should be the one we submit
-    raise ValueError(f"Could not find config file for checkpoint {checkpoint_path}")
 
 
 def write_config(log_dir: str, config: Config, train_config: TrainConfig):

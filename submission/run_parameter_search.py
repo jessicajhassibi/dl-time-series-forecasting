@@ -9,6 +9,7 @@ from src.config import Config, TrainConfig, write_config
 from src.datasets import ForecastDataset, load_dataset, load_schema, preprocess_dataset
 from src.model_registry import create_model, is_shifted_output
 from src.train import train_model
+from src.util.util import pick_device
 from src.validation import get_long_horizon_validation_metrics
 
 
@@ -43,6 +44,8 @@ def run_search(model_name: str = "linear_features", context_sizes: list[int] = [
 
     preprocess_dataset(dataframe, schema)
 
+    device = pick_device()
+
     result = np.ones((len(context_sizes), len(prediction_horizons))) * float('inf')
     for ci, context_size in enumerate(context_sizes):
         for pi, prediction_horizon in enumerate(prediction_horizons):
@@ -59,7 +62,7 @@ def run_search(model_name: str = "linear_features", context_sizes: list[int] = [
 
             dataset = ForecastDataset(train_df, train_schema, context_size=context_size,
                                       prediction_horizon=prediction_horizon,
-                                      is_shifted_output=is_shifted_output(model_name))
+                                      is_shifted_output=is_shifted_output(model_name), device=device)
             config = Config(model_name, context_size, prediction_horizon, model_config)
 
             total_score = 0.0
@@ -67,7 +70,7 @@ def run_search(model_name: str = "linear_features", context_sizes: list[int] = [
                 train_config = TrainConfig(seed=seed)
                 train_config.set_seed()
 
-                model = create_model(config, schema)
+                model = create_model(config, schema).to(device)
 
                 run_name = datetime.now().strftime("%Y_%m_%d_%H_%M_%S") + f"_{context_size}_{prediction_horizon}_{seed}"
                 log_dir = os.path.join(log_dir_name, model_name, "parameter_search", run_name)
@@ -75,7 +78,8 @@ def run_search(model_name: str = "linear_features", context_sizes: list[int] = [
 
                 write_config(log_dir, config, train_config)
 
-                train_model(model, dataset, None, log_dir, num_epochs, 128, -1)
+                train_model(model, dataset, None, train_config, log_dir, num_epochs, -1,
+                            device=device)
 
                 metrics = get_long_horizon_validation_metrics(model, context_size, prediction_horizon, dataframe,
                                                               schema, n_train, n_predictions)

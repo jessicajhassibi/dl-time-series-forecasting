@@ -1,23 +1,25 @@
 """Offline evaluation mirroring the leaderboard: hold out the last `horizon` hours of each
 training series, roll the model forward, and score WAPE/MAE/RMSE.
 
+IMPORTANT:
+Such evaluation results do not indicate the true model performance as the model may have already seen predicted values during training.
+
 Run: python eval_harness.py --checkpoint logs/tcn_deep/<run_dir>/checkpoint-best.pt
 """
 from __future__ import annotations
+
 from pathlib import Path
 
-import torch
 import tyro
 
-from src.config import get_config
-from src.datasets import load_dataset, load_schema, preprocess_dataset, get_slice_as_tensor
-from src.predict import predict_tensor
+from src.datasets import load_dataset, load_schema, preprocess_dataset
+from src.model_registry import create_model, get_config
 from src.train import load_model
-from src.models.tcn_deep import TCNDeep
+from src.validation import get_long_horizon_validation_metrics
 
 
 def evaluate(checkpoint: Path, horizon: int | None = None):
-    config, _ = get_config(checkpoint)
+    config = get_config(checkpoint)
     print(f"Loaded config: {config}")
 
     df = load_dataset("train")
@@ -30,30 +32,15 @@ def evaluate(checkpoint: Path, horizon: int | None = None):
     prediction_start = total - horizon
     print(f"Series length {total}; holding out last {horizon} steps (start {prediction_start}).")
 
-    model = TCNDeep(config.context_size, config.prediction_horizon,
-                    len(schema.feature_columns), **config.model_config)
-    load_model(checkpoint, model, device="cpu")
-    model.eval()
+    model = create_model(config, schema)
+    load_model(checkpoint, model)
 
-    series_ids = schema.get_series_ids(df)
-    groups = schema.get_series_groups(df)
-    context_df = groups.head(prediction_start)
+    result = get_long_horizon_validation_metrics(model, config.context_size, config.prediction_horizon, df,
+                                                 schema, prediction_start, horizon)
 
-    with torch.no_grad():
-        pred = predict_tensor(model, context_df, schema, config.context_size,
-                              config.prediction_horizon, series_ids, horizon)
-    actual = get_slice_as_tensor(groups, series_ids,
-                                 slice(prediction_start, prediction_start + horizon),
-                                 schema.target_column)
-
-    diff = pred - actual
-    wape = diff.abs().sum().item() / actual.abs().sum().item()
-    mae = diff.abs().mean().item()
-    rmse = (diff ** 2).mean().sqrt().item()
     print("\n=== Rollout evaluation (leaderboard-style) ===")
-    print(f"WAPE: {wape:.4f}")
-    print(f"MAE:  {mae:.4f}")
-    print(f"RMSE: {rmse:.4f}")
+    for metric_name, metric_value in result.items():
+        print(f"{metric_name}: {metric_value:.4f}")
 
 
 if __name__ == "__main__":

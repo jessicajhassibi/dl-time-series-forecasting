@@ -4,6 +4,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import torch
+
 
 def find_last_checkpoint(parent_directory: str = "logs") -> Path | None:
     """Find the last checkpoint in the given directory."""
@@ -14,3 +16,12 @@ def find_last_checkpoint(parent_directory: str = "logs") -> Path | None:
     if not checkpoints:
         return None
     return max(checkpoints, key=os.path.getmtime)
+
+
+def pick_device() -> torch.device:
+    """Select a device to run the model on."""
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    return torch.device("cpu")
