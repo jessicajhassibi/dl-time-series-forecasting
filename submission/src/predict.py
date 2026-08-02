@@ -78,5 +78,7 @@ def predict_tensor(model: Module, context_df: DataFrame, schema: Schema, context
         if y_features is not None:
             x_features = torch.cat([x_features, y_features], dim=1)
             x_features = x_features[:, -context_size:, :]
+        else:
+            x_features[...] = torch.nan
 
     return result
