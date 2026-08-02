@@ -8,6 +8,7 @@ from torch.nn import Module
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
+from .config import Config
 from .datasets import ForecastSample, Schema, get_slice_as_tensor
 from .predict import predict_tensor
 
@@ -83,17 +84,18 @@ def get_validation_metrics(model: Module, dataset: Dataset[ForecastSample],
     return result
 
 
-def get_long_horizon_validation_metrics(model: Module, context_size: int, prediction_horizon: int,
+def get_long_horizon_validation_metrics(model: Module, config: Config,
                                         dataframe: pd.DataFrame, schema: Schema, prediction_start: int,
                                         n_predictions: int,
                                         device: str | torch.device = "cpu") -> dict[str, float]:
-    """Run predictions for a time interval in the future and compute accuracy metrics.
-    This may require the model to use its own predictions as input, which can amplify prediction errors.
+    """Take the provided dataset up to prediction_start as input, predict values after that point,
+    and compare with the actual values in the dataset.
+    Since the number of predictions can be bigger than the model prediction horizon,
+    this may require the model to use its own predictions as input, which can amplify prediction errors.
 
     Args:
         model: model to use
-        context_size: context size of the model
-        prediction_horizon: prediction horizon of the model
+        config: model configuration
         dataframe: dataset to use for validation
         schema: dataset schema
         prediction_start: the timestep at which to start predictions.
@@ -107,7 +109,7 @@ def get_long_horizon_validation_metrics(model: Module, context_size: int, predic
         series_ids = schema.get_series_ids(dataframe)
         series_groups = schema.get_series_groups(dataframe)
         context_df = series_groups.head(prediction_start)
-        predicted_values = predict_tensor(model, context_df, schema, context_size, prediction_horizon,
+        predicted_values = predict_tensor(model, context_df, schema, config.context_size, config.prediction_horizon,
                                           series_ids, n_predictions, device)
         actual_values = get_slice_as_tensor(series_groups, series_ids,
                                             slice(prediction_start, prediction_start + n_predictions),

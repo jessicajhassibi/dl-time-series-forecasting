@@ -35,8 +35,7 @@ def evaluate(checkpoint: Path, horizon: int | None = None):
     model = create_model(config, schema)
     load_model(checkpoint, model)
 
-    result = get_long_horizon_validation_metrics(model, config.context_size, config.prediction_horizon, df,
-                                                 schema, prediction_start, horizon)
+    result = get_long_horizon_validation_metrics(model, config, df, schema, prediction_start, horizon)
 
     print("\n=== Rollout evaluation (leaderboard-style) ===")
     for metric_name, metric_value in result.items():

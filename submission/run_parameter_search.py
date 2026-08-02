@@ -81,8 +81,7 @@ def run_search(model_name: str = "linear_features", context_sizes: list[int] = [
                 train_model(model, dataset, None, train_config, log_dir, num_epochs, -1,
                             device=device)
 
-                metrics = get_long_horizon_validation_metrics(model, context_size, prediction_horizon, dataframe,
-                                                              schema, n_train, n_predictions)
+                metrics = get_long_horizon_validation_metrics(model, config, dataframe, schema, n_train, n_predictions)
                 if not metric_name in metrics:
                     raise ValueError(f"Metric {metric_name} is not found. Available metrics: {metrics.keys()}.")
                 total_score = total_score + metrics[metric_name]
