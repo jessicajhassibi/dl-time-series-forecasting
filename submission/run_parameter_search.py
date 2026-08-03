@@ -58,9 +58,8 @@ def run_search(model_name: str = "linear_features", context_sizes: list[int] = [
                   f" with series length {n_train} and prediction size {n_predictions}.")
 
             train_df = schema.get_series_groups(dataframe).head(n_train).copy()
-            train_schema = replace(schema, n_training_steps=n_train)
 
-            dataset = ForecastDataset(train_df, train_schema, context_size=context_size,
+            dataset = ForecastDataset(train_df, schema, context_size=context_size,
                                       prediction_horizon=prediction_horizon,
                                       is_shifted_output=is_shifted_output(model_name), device=device)
             config = Config(model_name, context_size, prediction_horizon, model_config)

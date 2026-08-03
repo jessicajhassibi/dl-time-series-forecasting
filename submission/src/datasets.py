@@ -175,7 +175,7 @@ class ForecastDataset(Dataset[ForecastSample]):
     """
 
     def __init__(self, df: pd.DataFrame, schema: Schema, context_size: int, prediction_horizon: int = 1,
-                 is_shifted_output: bool = False, device: str | torch.device = "cpu"):
+                 stride: int = 1, is_shifted_output: bool = False, device: str | torch.device = "cpu"):
         """
         Create the ForecastDataset.
 
@@ -184,12 +184,14 @@ class ForecastDataset(Dataset[ForecastSample]):
             schema: schema of the dataset
             context_size: number of past values to use for the input
             prediction_horizon: number of future values to predict
+            stride: distance between two consecutive samples
             is_shifted_output: if the output should only contain the future values,
                                or if it should be the input shifted by the prediction horizon.
             device: device to create tensors on
         """
         assert context_size >= 0, f"Negative context_size value {context_size}"
         assert prediction_horizon > 0, f"Non-positive prediction_horizon value {prediction_horizon}"
+        assert stride > 0, f"Negative stride value {stride}"
 
         preprocess_dataset(df, schema)
 
@@ -199,30 +201,33 @@ class ForecastDataset(Dataset[ForecastSample]):
         self.series_groups = self.schema.get_series_groups(df)
         self.series_ids = self.schema.get_series_ids(df)
 
+        self.series_length = len(self.series_groups.get_group(self.series_ids[0]))
+
         self.context_size = context_size
         self.prediction_horizon = prediction_horizon
+        self.stride = stride
         self.is_shifted_output = is_shifted_output
 
         self.device = device
 
         if self.n_chunks < 0:
-            raise ValueError(f"Not enough steps in each series ({self.schema.n_training_steps}) "
+            raise ValueError(f"Not enough steps in each series ({self.series_length}) "
                              f"for the dataset with context size {self.context_size} and prediction horizon {self.prediction_horizon}")
 
     @property
     def n_chunks(self) -> int:
         """Number of chunks we can split each series into"""
-        return self.schema.n_training_steps - self.context_size - self.prediction_horizon + 1
+        return (self.series_length - self.context_size - self.prediction_horizon) // self.stride + 1
 
     def __len__(self) -> int:
-        return self.schema.n_series * self.n_chunks
+        return len(self.series_ids) * self.n_chunks
 
     def __getitem__(self, index: int) -> ForecastSample:
         series_idx = index // self.n_chunks
         series_id = self.series_ids[series_idx]
         series_df = self.series_groups.get_group(series_id)
 
-        input_idx_start = index % self.n_chunks
+        input_idx_start = (index % self.n_chunks) * self.stride
         input_idx_end = input_idx_start + self.context_size
 
         xs = series_df.iloc[input_idx_start:input_idx_end][self.schema.target_column].to_numpy()
