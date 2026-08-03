@@ -47,9 +47,9 @@ def get_default_config(model_name: str = "tcn") -> Config:
         return Config(model_name=model_name, context_size=1024, prediction_horizon=2 * 336)
     if model_name == "tcn":
         kernel_size = 3
-        levels = 7
+        levels = 9
         context_size = 1 + (kernel_size - 1) * (2 ** levels - 1)
-        return Config(model_name=model_name, context_size=context_size, prediction_horizon=336,
+        return Config(model_name=model_name, context_size=context_size, prediction_horizon=2 * 336,
                       model_config=dict(hidden=64,
                                         levels=levels,
                                         kernel_size=kernel_size,
