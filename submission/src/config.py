@@ -32,10 +32,15 @@ class Config:
 class TrainConfig:
     """Training configuration"""
     seed: int = 42
+    """Random seed"""
     batch_size: int = 256
+    """Batch size"""
     lr: float = 1e-3
+    """Learning rate"""
     weight_decay: float = 1e-2
+    """Weight decay for the optimizer"""
     huber_delta: float = 1.0
+    """Delta value for the Huber loss"""
 
     def set_seed(self):
         np.random.seed(self.seed)
