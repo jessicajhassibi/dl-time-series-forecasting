@@ -8,7 +8,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 from .config import TrainConfig
 from .datasets import ForecastSample
@@ -56,11 +56,12 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_datas
     best_checkpoint_name = "checkpoint-best.pt"
 
     with SummaryWriter(log_dir=log_dir) as writer:
-        for epoch in range(start_epoch, start_epoch + num_epochs):
+        for epoch in trange(start_epoch, start_epoch + num_epochs, desc="Training"):
             metrics = {}
 
             num_batches = len(train_loader)
-            inner_loop = tqdm(enumerate(train_loader), total=num_batches)
+            inner_loop = tqdm(enumerate(train_loader), desc=f"Epoch {epoch}", total=num_batches,
+                              leave=False)
             for batch_idx, sample in inner_loop:
                 optimizer.zero_grad()
 
@@ -102,7 +103,7 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_datas
                 global_step += 1
 
             if is_validation_enabled:
-                print(f"Epoch {epoch}: Best {val_metric_name}: {best_metric_value:.4f}, " +
+                tqdm.write(f"Epoch {epoch}: Best {val_metric_name}: {best_metric_value:.4f}, " +
                            ", ".join([f"{k}: {v:.4f}" for k, v in metrics.items()]))
             else:
                 save_model(model, optimizer, scheduler, epoch, global_step - 1, log_dir)

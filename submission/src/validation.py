@@ -72,7 +72,7 @@ def get_validation_metrics(model: Module, dataset: Dataset[ForecastSample],
         val_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
         metrics = Metrics()
-        for sample in tqdm(val_loader, desc="Computing validation metrics", position=1, leave=False):
+        for sample in tqdm(val_loader, desc="Validation", leave=False):
             x = sample['x']
             y = sample['y']
             x_features = sample['x_features']
