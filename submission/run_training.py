@@ -20,14 +20,12 @@ from src.util.util import pick_device
 
 def run_training(config: Config = get_default_config("tcn"),
                  train_config: TrainConfig = TrainConfig(),
-                 num_epochs: int = 1, log_dir_name="logs",
-                 checkpoint: Path | None = None):
+                 log_dir_name="logs", checkpoint: Path | None = None):
     """Run training for the given model
 
     Args:
         config: model parameters
         train_config: training parameters
-        num_epochs: number of epochs to train the model
         log_dir_name: name of the directory to save log files and model checkpoints
         checkpoint: path to checkpoint to resume training from.
                     If a checkpoint is given, its configuration overrides the parameters provided in the command line.
@@ -55,6 +53,7 @@ def run_training(config: Config = get_default_config("tcn"),
 
     dataset = ForecastDataset(dataframe, schema, context_size=config.context_size,
                               prediction_horizon=config.prediction_horizon,
+                              stride=train_config.dataset_stride,
                               is_shifted_output=is_shifted_output(config.model_name),
                               device=device)
     print(f"Loaded training dataset of length {len(dataset)}")
@@ -69,7 +68,7 @@ def run_training(config: Config = get_default_config("tcn"),
 
     train_dataset, val_dataset = torch.utils.data.random_split(dataset, [0.9, 0.1],
                                                                generator=train_config.create_random_generator())
-    train_model(model, train_dataset, val_dataset, train_config, log_dir, num_epochs=num_epochs,
+    train_model(model, train_dataset, val_dataset, train_config, log_dir,
                 checkpoint=checkpoint, device=device)
 
 

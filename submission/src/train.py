@@ -15,8 +15,9 @@ from .datasets import ForecastSample
 from .validation import get_validation_metrics
 
 
-def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_dataset: Dataset[ForecastSample] | None,
-                train_config: TrainConfig, log_dir: str, num_epochs: int = 1,
+def train_model(model: Module, train_dataset: Dataset[ForecastSample],
+                val_dataset: Dataset[ForecastSample] | None,
+                train_config: TrainConfig, log_dir: str,
                 validate_step: int = 500, val_metric_name: str = "WAPE",
                 checkpoint: Path | None = None, device: str | torch.device = "cpu"):
     """
@@ -28,7 +29,6 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_datas
         val_dataset: dataset to use for validation during training, pass None to skip validation
         train_config: training configuration parameters
         log_dir: directory for saving checkpoints and writing log files
-        num_epochs: number of epochs
         validate_step: number of training steps between validations,
                        negative values means only validate after each epoch if validation dataset is provided
         val_metric_name: validation metrics to use
@@ -40,7 +40,7 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_datas
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=train_config.lr, weight_decay=train_config.weight_decay)
     criterion = torch.nn.HuberLoss(delta=train_config.huber_delta)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs * len(train_loader))
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=train_config.num_epochs * len(train_loader))
 
     start_epoch = 0
     global_step = 0
@@ -56,7 +56,7 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample], val_datas
     best_checkpoint_name = "checkpoint-best.pt"
 
     with SummaryWriter(log_dir=log_dir) as writer:
-        for epoch in trange(start_epoch, start_epoch + num_epochs, desc="Training"):
+        for epoch in trange(start_epoch, train_config.num_epochs, desc="Training"):
             metrics = {}
 
             num_batches = len(train_loader)

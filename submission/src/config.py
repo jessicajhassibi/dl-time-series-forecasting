@@ -31,6 +31,11 @@ class Config:
 @dataclass
 class TrainConfig:
     """Training configuration"""
+
+    dataset_stride: int = 8
+    """Shift between consecutive dataset samples"""
+    num_epochs: int = 20
+    """Number of training epochs"""
     seed: int = 42
     """Random seed"""
     batch_size: int = 256
