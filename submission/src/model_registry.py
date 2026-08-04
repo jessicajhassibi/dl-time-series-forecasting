@@ -48,13 +48,17 @@ def get_default_config(model_name: str = "tcn") -> Config:
     if model_name == "tcn":
         kernel_size = 3
         levels = 9
-        context_size = 1 + (kernel_size - 1) * (2 ** levels - 1)
+        context_size = get_tcn_receptive_field(kernel_size, levels)
         return Config(model_name=model_name, context_size=context_size, prediction_horizon=2 * 336,
                       model_config=dict(hidden=64,
                                         levels=levels,
                                         kernel_size=kernel_size,
                                         dropout=0.1))
     raise ValueError(f"Unknown model name {model_name}")
+
+
+def get_tcn_receptive_field(kernel_size: int, levels: int) -> int:
+    return 1 + (kernel_size - 1) * (2 ** levels - 1)
 
 
 def get_config(checkpoint_path: str | Path) -> Config:
