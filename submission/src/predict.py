@@ -46,7 +46,7 @@ def predict(model: torch.nn.Module, context_df: pd.DataFrame, forecast_df: pd.Da
     forecast_series_ids = schema.get_series_ids(forecast_df)
 
     result = predict_tensor(model, context_df, schema, context_size, prediction_horizon, forecast_series_ids,
-                            forecast_horizon, device=device).detach().numpy()
+                            forecast_horizon, device=device).cpu().detach().numpy()
 
     # Fill the dataframe with predictions by taking forecast_size values for each series
     # TODO use the timestamps in the forecast dataset for each series instead of just taking last block of values.
