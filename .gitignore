@@ -1,3 +1,6 @@
 submission/logs
 submission/dataset
 submission/predictions
+.venv
+submission/src/dataset
+submission/src/__pycache__
