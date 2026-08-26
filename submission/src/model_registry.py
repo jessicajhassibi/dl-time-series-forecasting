@@ -9,6 +9,7 @@ from .config import Config, get_config_if_exists
 from .datasets import Schema
 from .models.linear import LinearModel, LinearModelWithFeatures
 from .models.tcn_deep import TCNDeep
+from .models.lstm import LSTM
 
 MODELS = ("linear", "linear_features", "tcn")
 
@@ -28,6 +29,8 @@ def create_model(config: Config, schema: Schema) -> nn.Module:
         return LinearModelWithFeatures(config.context_size, config.prediction_horizon, len(schema.feature_columns))
     elif config.model_name == "tcn":
         return TCNDeep(config.prediction_horizon, len(schema.feature_columns), **config.model_config)
+    elif config.model_name == "lstm":
+        return LSTM(23, 64, 2, 24)
     else:
         raise ValueError(f"Unknown model name {config.model_name}")
 
@@ -39,12 +42,16 @@ def is_shifted_output(model_name: str) -> bool:
         return False
     if model_name == "tcn":
         return False
+    if model_name == "lstm":
+        return False
     raise ValueError(f"Unknown model name {model_name}")
 
 
 def get_default_config(model_name: str = "tcn") -> Config:
     if model_name in ("linear", "linear_features"):
         return Config(model_name=model_name, context_size=1024, prediction_horizon=2 * 336)
+    if model_name == "lstm":
+        return Config(model_name=model_name, context_size=168, prediction_horizon=24)
     if model_name == "tcn":
         kernel_size = 3
         levels = 8

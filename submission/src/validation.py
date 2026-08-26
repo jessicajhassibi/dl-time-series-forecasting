@@ -20,7 +20,7 @@ class Metrics:
         self.value_sum = 0.0
         self.count = 0
 
-    def add_batch(self, predicted_values: torch.Tensor, actual_values: torch.Tensor) -> Metrics:
+    def add_batch(self, predicted_values: torch.Tensor, actual_values: torch.Tensor) -> "Metrics":
         diff = actual_values - predicted_values
         self.error_sum += diff.abs().sum().item()
         self.error_squared_sum += (diff ** 2).sum().item()

@@ -62,6 +62,7 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample],
             num_batches = len(train_loader)
             inner_loop = tqdm(enumerate(train_loader), desc=f"Epoch {epoch}", total=num_batches,
                               leave=False)
+            print(num_batches)
             for batch_idx, sample in inner_loop:
                 optimizer.zero_grad()
 
@@ -69,6 +70,10 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample],
                 y = sample['y']
                 x_features = sample['x_features']
                 y_features = sample['y_features']
+                print(len(x), x.shape)
+                print(len(y), y.shape)
+                print(len(x_features), x_features.shape)
+
 
                 y_pred, y_features_pred = model(x, x_features)
 
