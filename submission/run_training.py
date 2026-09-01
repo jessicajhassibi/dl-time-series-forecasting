@@ -22,7 +22,8 @@ from src.util.util import pick_device
 def run_linear(context_size: int = get_default_config("linear_features").context_size,
                prediction_horizon: int = get_default_config("linear_features").prediction_horizon,
                train_config: TrainConfig = TrainConfig(),
-               log_dir_name="logs"):
+               log_dir_name="logs",
+               dataset_dir: Path = Path("dataset")):
     """Train the linear model
 
     Args:
@@ -30,10 +31,12 @@ def run_linear(context_size: int = get_default_config("linear_features").context
         prediction_horizon: number of values in the future to predict
         train_config: training parameters
         log_dir_name: name of the directory to save log files and model checkpoints
+        dataset_dir: directory holding the dataset to train on
     """
     run_training(Config(model_name="linear_features",
                         context_size=context_size, prediction_horizon=prediction_horizon),
-                 train_config=train_config, log_dir_name=log_dir_name, checkpoint=None)
+                 train_config=train_config, log_dir_name=log_dir_name, checkpoint=None,
+                 dataset_dir=dataset_dir)
 
 
 def run_tcn(prediction_horizon: int = get_default_config("tcn").prediction_horizon,
@@ -42,7 +45,8 @@ def run_tcn(prediction_horizon: int = get_default_config("tcn").prediction_horiz
             kernel_size=get_default_config("tcn").model_config["kernel_size"],
             dropout=get_default_config("tcn").model_config["dropout"],
             train_config: TrainConfig = TrainConfig(),
-            log_dir_name="logs"):
+            log_dir_name="logs",
+            dataset_dir: Path = Path("dataset")):
     """Train the temporal convolution model
 
     Args:
@@ -53,20 +57,23 @@ def run_tcn(prediction_horizon: int = get_default_config("tcn").prediction_horiz
         dropout: dropout rate
         train_config: training parameters
         log_dir_name: name of the directory to save log files and model checkpoints
+        dataset_dir: directory holding the dataset to train on
     """
     run_training(Config(model_name="tcn", context_size=get_tcn_receptive_field(kernel_size, levels),
                         prediction_horizon=prediction_horizon,
                         model_config=dict(hidden=hidden, levels=levels,
                                           dropout=dropout, kernel_size=kernel_size)),
-                 train_config=train_config, log_dir_name=log_dir_name, checkpoint=None)
+                 train_config=train_config, log_dir_name=log_dir_name, checkpoint=None,
+                 dataset_dir=dataset_dir)
 
 
-def run_checkpoint(checkpoint: Path, log_dir_name: str):
+def run_checkpoint(checkpoint: Path, log_dir_name: str, dataset_dir: Path = Path("dataset")):
     """Continue training from the checkpoint
 
     Args:
         checkpoint: checkpoint path
         log_dir_name: name of the directory to save log files and model checkpoints
+        dataset_dir: directory holding the dataset to train on
     """
     checkpoint_config = get_config_if_exists(checkpoint)
     if checkpoint_config is None:
@@ -77,19 +84,21 @@ def run_checkpoint(checkpoint: Path, log_dir_name: str):
 
     print(f"Using configuration:\n{config}\n{train_config}")
 
-    run_training(config, train_config, log_dir_name, checkpoint)
+    run_training(config, train_config, log_dir_name, checkpoint, dataset_dir=dataset_dir)
 
 
-def run_training(config: Config, train_config: TrainConfig, log_dir_name: str, checkpoint: Path | None):
+def run_training(config: Config, train_config: TrainConfig, log_dir_name: str, checkpoint: Path | None,
+                 dataset_dir: Path = Path("dataset")):
     print(f"Running training for the {config.model_name} model.")
+    print(f"Using dataset directory {dataset_dir}")
 
     train_config.set_seed()
 
     device = pick_device()
     print(f"Using device: {device}")
 
-    dataframe = load_dataset("train")
-    schema = load_schema()
+    dataframe = load_dataset("train", dataset_dir=dataset_dir)
+    schema = load_schema(dataset_dir)
 
     model = create_model(config, schema).to(device=device)
 

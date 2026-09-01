@@ -16,9 +16,21 @@ from torch import Tensor
 from torch.utils.data import Dataset
 
 
+BENCHMARK_DATASET_DIR = "dataset"
+"""Directory of the benchmark dataset, the only one that can be fetched from the Hugging Face Hub."""
+
+
 def download_dataset(dataset_dir: str | Path, target_path: str):
-    """Downloads the dataset into the specified directory if the target path is not present."""
+    """Downloads the dataset into the specified directory if the target path is not present.
+
+    Only the benchmark dataset is downloadable. The ASHRAE dataset, which is built locally by `convert_ashrae.py`)
+    must already be present on disk, so a missing file there is reported instead of being overwritten by a download.
+    """
     if not os.path.exists(target_path):
+        if os.fspath(dataset_dir) != BENCHMARK_DATASET_DIR:
+            raise FileNotFoundError(
+                f"Required path {target_path} not found in the local dataset directory "
+                f"{dataset_dir}. Only '{BENCHMARK_DATASET_DIR}' is downloaded automatically.")
         snapshot_download(repo_id="AIML-TUDA/dlam-ts-project-data-2026", repo_type="dataset",
                           local_dir=dataset_dir)
     if not os.path.exists(target_path):

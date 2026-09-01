@@ -18,12 +18,12 @@ from src.train import load_model
 from src.validation import get_long_horizon_validation_metrics
 
 
-def evaluate(checkpoint: Path, horizon: int | None = None):
+def evaluate(checkpoint: Path, horizon: int | None = None, dataset_dir: Path = Path("dataset")):
     config = get_config(checkpoint)
     print(f"Loaded config: {config}")
 
-    df = load_dataset("train")
-    schema = load_schema()
+    df = load_dataset("train", dataset_dir=dataset_dir)
+    schema = load_schema(dataset_dir)
     preprocess_dataset(df, schema)
 
     if horizon is None:
