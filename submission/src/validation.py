@@ -1,4 +1,6 @@
 """Validation functions to evaluate prediction results using various metrics."""
+from __future__ import annotations
+
 import math
 from contextlib import contextmanager
 
