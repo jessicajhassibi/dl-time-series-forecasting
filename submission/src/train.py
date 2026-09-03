@@ -53,7 +53,6 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample],
 
     is_validation_enabled = val_dataset is not None
     best_metric_value = float("inf")
-    best_checkpoint_name = "checkpoint-best.pt"
 
     with SummaryWriter(log_dir=log_dir) as writer:
         for epoch in trange(start_epoch, train_config.num_epochs, desc="Training"):
@@ -96,9 +95,6 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample],
                     val_metric_value = metrics[val_metric_name]
                     if val_metric_value < best_metric_value:
                         best_metric_value = val_metric_value
-                        save_model(model, optimizer, scheduler, epoch, global_step, log_dir,
-                                   checkpoint_name=best_checkpoint_name)
-                        # TODO copy already saved checkpoint
 
                 global_step += 1
 
@@ -109,8 +105,7 @@ def train_model(model: Module, train_dataset: Dataset[ForecastSample],
                 save_model(model, optimizer, scheduler, epoch, global_step - 1, log_dir)
 
     if is_validation_enabled:
-        print(f"Best {val_metric_name}: {best_metric_value:.4f}, "
-              f"best checkpoint at {os.path.join(log_dir, best_checkpoint_name)}")
+        print(f"Best {val_metric_name}: {best_metric_value:.4f}")
 
 
 def load_model(checkpoint: Path, model: Module, optimizer: Optimizer | None = None,

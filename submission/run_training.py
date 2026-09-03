@@ -117,6 +117,7 @@ def run_training(config: Config, train_config: TrainConfig, log_dir_name: str, c
 
     write_config(log_dir, config, train_config)
 
+    # TODO this split is incorrect for the forecasting datasets as evaluation is performed on the data the model could have seen
     train_dataset, val_dataset = torch.utils.data.random_split(dataset, [0.9, 0.1],
                                                                generator=train_config.create_random_generator())
     train_model(model, train_dataset, val_dataset, train_config, log_dir,
