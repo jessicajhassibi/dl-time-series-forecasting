@@ -1,0 +1,13 @@
+config:
+  context_size: 1021
+  model_config: {}
+  model_name: linear_features
+  prediction_horizon: 672
+train_config:
+  batch_size: 256
+  dataset_stride: 1
+  huber_delta: 1.0
+  lr: 0.001
+  num_epochs: 1
+  seed: 42
+  weight_decay: 0.01
