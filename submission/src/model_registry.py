@@ -43,16 +43,17 @@ def is_shifted_output(model_name: str) -> bool:
 
 
 def get_default_config(model_name: str = "tcn") -> Config:
+    tcn_kernel_size = 3
+    tcn_levels = 8
+    context_size = get_tcn_receptive_field(tcn_kernel_size, tcn_levels)
+
     if model_name in ("linear", "linear_features"):
-        return Config(model_name=model_name, context_size=1024, prediction_horizon=2 * 336)
+        return Config(model_name=model_name, context_size=context_size, prediction_horizon=2 * 336)
     if model_name == "tcn":
-        kernel_size = 3
-        levels = 8
-        context_size = get_tcn_receptive_field(kernel_size, levels)
         return Config(model_name=model_name, context_size=context_size, prediction_horizon=2 * 336,
                       model_config=dict(hidden=64,
-                                        levels=levels,
-                                        kernel_size=kernel_size,
+                                        levels=tcn_levels,
+                                        kernel_size=tcn_kernel_size,
                                         dropout=0.1))
     raise ValueError(f"Unknown model name {model_name}")
 
