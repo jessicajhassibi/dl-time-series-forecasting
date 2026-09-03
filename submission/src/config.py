@@ -32,9 +32,9 @@ class Config:
 class TrainConfig:
     """Training configuration"""
 
-    dataset_stride: int = 4
+    dataset_stride: int = 1
     """Shift between consecutive dataset samples"""
-    num_epochs: int = 20
+    num_epochs: int = 4
     """Number of training epochs"""
     seed: int = 42
     """Random seed"""
