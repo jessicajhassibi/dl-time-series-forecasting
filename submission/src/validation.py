@@ -16,26 +16,55 @@ from .predict import predict_tensor
 
 
 class Metrics:
+    """Full leaderboard metric suite over batches.    """
+
     def __init__(self):
         self.error_sum = 0.0
         self.error_squared_sum = 0.0
         self.value_sum = 0.0
         self.count = 0
+        # MAPE and sMAPE are undefined where their denominator vanishes; those elements are
+        # dropped rather than clipped, so a series of zero readings cannot inflate or deflate
+        # the score. Each therefore needs its own count.
+        self.percentage_error_sum = 0.0
+        self.percentage_error_count = 0
+        self.symmetric_error_sum = 0.0
+        self.symmetric_error_count = 0
 
     def add_batch(self, predicted_values: torch.Tensor, actual_values: torch.Tensor) -> Metrics:
         diff = actual_values - predicted_values
-        self.error_sum += diff.abs().sum().item()
+        abs_diff = diff.abs()
+        abs_actual = actual_values.abs()
+
+        self.error_sum += abs_diff.sum().item()
         self.error_squared_sum += (diff ** 2).sum().item()
-        self.value_sum += actual_values.abs().sum().item()
+        self.value_sum += abs_actual.sum().item()
         self.count += actual_values.numel()
+
+        nonzero = actual_values != 0
+        self.percentage_error_sum += (abs_diff[nonzero] / abs_actual[nonzero]).sum().item()
+        self.percentage_error_count += int(nonzero.sum().item())
+
+        denominator = abs_actual + predicted_values.abs()
+        both_nonzero = denominator != 0
+        self.symmetric_error_sum += (2.0 * abs_diff[both_nonzero] / denominator[both_nonzero]).sum().item()
+        self.symmetric_error_count += int(both_nonzero.sum().item())
 
         return self
 
     def compute(self) -> dict[str, float]:
-        # TODO add additional metrics ?
-        return dict(WAPE=self.error_sum / self.value_sum,
-                    MAE=self.error_sum / self.count,
-                    RMSE=math.sqrt(self.error_squared_sum / self.count))
+        """Return every metric the leaderboard reports. Lower is better for all of them."""
+        return dict(MAE=self.error_sum / self.count,
+                    MSE=self.error_squared_sum / self.count,
+                    RMSE=math.sqrt(self.error_squared_sum / self.count),
+                    MAPE=_mean(self.percentage_error_sum, self.percentage_error_count),
+                    sMAPE=_mean(self.symmetric_error_sum, self.symmetric_error_count),
+                    WAPE=self.error_sum / self.value_sum)
+
+
+def _mean(total: float, count: int) -> float:
+    """Mean of a metric whose undefined elements were skipped, or NaN if none remained."""
+    return total / count if count else float("nan")
 
 
 @contextmanager
