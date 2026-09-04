@@ -97,9 +97,6 @@ def run_lstm(
             model_name="lstm",
             context_size=context_size,
             prediction_horizon=prediction_horizon,
-            model_config=dict(
-                
-            )
         ),
         train_config=train_config,
         log_dir_name=log_dir_name,
