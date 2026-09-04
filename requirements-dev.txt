@@ -1,0 +1,6 @@
+-r submission/requirements.txt
+
+kaggle
+plotly
+plotly-express
+scipy

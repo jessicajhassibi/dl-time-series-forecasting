@@ -1,10 +1,9 @@
+# Inference dependencies. Data-preparation and plotting tools are in ../requirements-dev.txt.
 torch>=2.2
 pandas>=2.2
 numpy>=1.26
-plotly
-plotly-express
-huggingface_hub
-scipy
+pyyaml>=5.1
+tyro
 tqdm
 tensorboard
-tyro
+huggingface_hub
