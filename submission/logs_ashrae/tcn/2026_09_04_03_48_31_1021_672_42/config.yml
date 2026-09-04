@@ -1,0 +1,17 @@
+config:
+  context_size: 1021
+  model_config:
+    dropout: 0.1
+    hidden: 64
+    kernel_size: 3
+    levels: 8
+  model_name: tcn
+  prediction_horizon: 672
+train_config:
+  batch_size: 256
+  dataset_stride: 7
+  huber_delta: 1.0
+  lr: 0.001
+  num_epochs: 1
+  seed: 42
+  weight_decay: 0.01
