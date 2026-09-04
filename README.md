@@ -1,85 +1,130 @@
-# Student Instructions
+# Multivariate Time Series Forecasting with a Temporal Convolutional Network
 
-This project is about multivariate time series forecasting with deep learning.
+Group 10 — Deep Learning bonus project, SS26, TU Darmstadt.
+Members: Jessica Hassibi, Sardorbek Bobomurodov, Yulia Belyaeva, Felix Bauer
 
-## Important Links
+We forecast 336 hours ahead for each series of the course benchmark
+(`operations_forecasting_2026`) with a dilated **temporal convolutional network** trained in
+PyTorch, and we repeat the experiment on a second, independently chosen dataset
+(**ASHRAE GEPIII** building electricity meters) to test whether the architecture transfers.
 
-- Dataset: https://huggingface.co/datasets/AIML-TUDA/dlam-ts-project-data-2026
-- Hugging Face leaderboard Space: https://aiml-tuda-dlam-ts-project-leaderboard-2026.hf.space/
-- Moodle submission page: https://moodle.informatik.tu-darmstadt.de/course/view.php?id=2011
-- Report template: `student/report_template/`
-- Code template: `student/submission_template/`
-- Baseline examples: `student/baseline/`
-- Deadline: 04.09.2026
+---
 
-Leaderboard metrics: MAE, MSE, RMSE, MAPE, sMAPE, and WAPE. Lower is better for all metrics.
+## 1. Reproducing everything
+- **run commands from the repository root**
+- The dataset and training scripts are the exception: their default paths are relative to `submission/`, so
+those blocks start with `cd submission`.
 
-Target: predict the future hourly operational load index for each `series_id`. Higher values mean more operational pressure in that unit.
+### 1.1 Python environment
 
-## What You Need To Submit
+Python 3.12, managed with [`uv`](https://docs.astral.sh/uv/).
 
-Submit the following:
-
-- Final report PDF.
-- Reproducible code repository or archive.
-- Final model archive `final_submission.zip` through the Hugging Face leaderboard Space.
-
-## Public Validation Leaderboard
-
-You may upload validation predictions to the Hugging Face Space. The Space scores your CSV automatically against hidden validation labels and updates the public validation leaderboard.
-
-Before uploading, register your group in the Space and list every group member's Hugging Face username. Any listed member can submit revisions for the same group.
-
-Before registration, submission tabs are hidden. After registration, the Space uses your Hugging Face login to select the group automatically, and the group tab changes to `Manage Group`. You do not type the group ID again. If the registration is wrong, ask an instructor to correct it.
-
-Each validation upload also asks for a model name. Use a short technical name such as `XY_features_v1` or `ZZZ_ablation_2`. Reusing the same model name creates a new revision for that model; using a different model name creates another leaderboard row for your group. Do not add the model name as a CSV column.
-
-The student dataset contains `train.csv`, `validation_input.csv`, `forecast_index_validation.csv`, and `metadata.json`. It does not contain validation targets, test inputs, or test targets.
-
-Before building your model, you can generate simple baseline prediction files from `student/baseline/`.
-
-Required prediction format:
-
-```csv
-series_id,timestamp,prediction
+```bash
+uv venv --python 3.12 .venv
+uv pip install --python .venv -r requirements-dev.txt
 ```
 
-Your validation prediction file must contain one row for every row in `forecast_index_validation.csv`. The 24-hour forecast horizon is the recommended rollout block length, not the total number of rows to submit. The validation and private test indices each contain 336 hourly timestamps per series, so a 24-step model must be rolled forward until all required rows are filled.
+- Activate with `source .venv/bin/activate`
+- In PyCharm: Settings → Project → Python Interpreter → Add → Existing → `.venv/bin/python`
 
-## Final Model Submission
+### 1.2 Benchmark dataset
 
-Final test data is private. You do not receive test labels or private test inputs. Instead, you submit a runnable model archive. During private evaluation, your script receives a private input directory containing `test_input.csv`, `forecast_index_test.csv`, and `metadata.json`.
+Auto-downloads from Hugging Face (`AIML-TUDA/dlam-ts-project-data-2026`) into
+`submission/dataset/` the first time any script needs it:
 
-Your `final_submission.zip` must contain:
-
-```text
-predict.py
-requirements.txt
-checkpoint.pt
-src/  # optional
+```bash
+cd submission && ../.venv/bin/python check_dataset.py
 ```
 
-During private evaluation, instructors run:
+Produces `train.csv`, `validation_input.csv`, `forecast_index_validation.csv`, `metadata.json`.
+
+### 1.3 ASHRAE GEPIII dataset (Kaggle, needs auth)
+1. **Authenticate**:
+   ```bash
+   .venv/bin/kaggle auth login
+   ```
+2. **Accept the competition rules** — required, or downloads return HTTP 403:
+   visit https://www.kaggle.com/competitions/ashrae-energy-prediction/rules,
+   click "Late Submission" if offered, then "I Understand and Accept".
+
+- Download the three files.
+
+```bash
+mkdir -p submission/dataset_ashrae/raw
+for f in building_metadata.csv weather_train.csv train.csv; do
+  .venv/bin/kaggle competitions download -c ashrae-energy-prediction -f $f -p submission/dataset_ashrae/raw
+done
+cd submission/dataset_ashrae/raw && for z in *.zip; do unzip -o "$z" && rm "$z"; done
+```
+
+- Convert them into the same format as the benchmark, so one pipeline for both:
+
+```bash
+cd submission && ../.venv/bin/python convert_ashrae.py
+```
+
+Produces `train.csv`, `validation_input.csv`, `forecast_index_validation.csv`, `validation_target.csv`,`metadata.json` and a generated dataset card.
+
+### 1.4 Training
+
+Both runs use seed 42 and write TensorBoard logs and checkpoints into their log directory
+(`tensorboard --logdir submission/logs`).
+
+Benchmark:
+
+```bash
+cd submission && ../.venv/bin/python run_training.py tcn \
+  --train_config.num_epochs 1 --train_config.dataset_stride 1 --train_config.seed 42
+```
+
+ASHRAE:
+
+```bash
+cd submission && ../.venv/bin/python run_training.py tcn \
+  --dataset_dir dataset_ashrae --log_dir_name logs_ashrae \
+  --train_config.num_epochs 1 --train_config.dataset_stride 7 --train_config.seed 42
+```
+
+Swap `tcn` for `linear` to train the linear reference model, or use
+`run_training.py checkpoint --checkpoint <path> --log_dir_name <dir>` to continue a run.
+
+### 1.5 Evaluation
+
+- **`evalharness.py`** holds out the tail of the *training* series.
+
+```bash
+cd submission && ../.venv/bin/python evalharness.py \
+  --checkpoint logs/tcn/<run>/checkpoint-<n>.pt --dataset-dir dataset
+```
+
+- **`score_predictions.py`** scores against genuinely held-out labels — ASHRAE only:
+
+```bash
+cd submission
+../.venv/bin/python predict.py --checkpoint logs_ashrae/tcn/<run>/checkpoint-<n>.pt \
+  --input_dir dataset_ashrae --output_file predictions/ashrae_tcn.csv
+../.venv/bin/python score_predictions.py --predictions predictions/ashrae_tcn.csv \
+  --labels dataset_ashrae/validation_target.csv
+```
+
+- Simple baselines, for either dataset:
+
+```bash
+.venv/bin/python baseline/run_baselines.py \
+  --train submission/dataset_ashrae/train.csv \
+  --forecast-index submission/dataset_ashrae/forecast_index_validation.csv \
+  --output-dir submission/dataset_ashrae/baselines
+```
+
+### 1.6 Inference and the final archive
+
+- The command required for private evaluation:
 
 ```bash
 python predict.py --input_dir /data/input --output_file /output/predictions.csv --checkpoint /submission/checkpoint.pt
 ```
 
-Your script must write the prediction CSV to the requested output path.
+---
 
-When uploading the final archive, use the same model name as the validation row that corresponds to the submitted checkpoint.
-
-The baseline examples in `student/baseline/` show simple ways to produce valid prediction CSVs. Your final model should replace these baselines with your own PyTorch forecasting method.
-
-## Reproducibility Requirements
-
-- Use PyTorch for the model.
-- Document training and inference steps in your README.
-- Fix random seeds where reasonable.
-- State all important hyperparameters.
-- Include each group member's contribution in the report.
-- Do not depend on internet access during final inference.
-
-## Report
-
-The report should be 4--6 pages excluding references and cover introduction, related work, method, experiments, and conclusion.
+## 2. Notes
+- All hyperparameters are recorded per run in `config.yml` next to each checkpoint.
