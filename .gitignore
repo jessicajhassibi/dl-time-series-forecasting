@@ -1,3 +1,5 @@
 submission/logs
 submission/dataset
+submission/dataset_ashrae
 submission/predictions
+.venv
