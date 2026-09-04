@@ -107,14 +107,17 @@ cd submission
   --labels dataset_ashrae/validation_target.csv
 ```
 
-- Simple baselines, for either dataset:
+- Simple baselines (naive last value, lag-24, lag-168, seasonal mean):
 
 ```bash
 .venv/bin/python baseline/run_baselines.py \
-  --train submission/dataset_ashrae/train.csv \
-  --forecast-index submission/dataset_ashrae/forecast_index_validation.csv \
-  --output-dir submission/dataset_ashrae/baselines
+  --train submission/dataset/train.csv \
+  --forecast-index submission/dataset/forecast_index_validation.csv \
+  --output-dir submission/dataset/baselines
 ```
+
+  Swap `dataset` for `dataset_ashrae` in all three paths to get the ASHRAE baselines, which
+  are the ones `score_predictions.py` above can actually score against real labels.
 
 ### 1.6 Inference and the final archive
 
